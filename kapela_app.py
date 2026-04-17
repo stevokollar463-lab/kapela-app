@@ -11,7 +11,8 @@ PB_API_KEY = "o.Ir4LWAKm78pwEhpKkAf6WZY9uZPNCkSm"
 LOGIN_MENO = "ovcanskeparobci"
 LOGIN_HESLO = "OvcanskeParobci123"
 
-KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg"
+# VRÁTENÁ STARÁ OREZANÁ FOTKA V TOP KVALITE
+KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg" 
 
 # --- DIZAJN ---
 def apply_style():
@@ -73,10 +74,10 @@ if menu == "🎸 Rezervácia":
         st.subheader("📩 Rezervačný dopyt")
         col1, col2 = st.columns(2)
         with col1: datum = st.date_input("Dátum akcie", min_value=datetime.now())
-        with col2: cas = st.time_input("Približný čas")
+        with col2: cas = st.time_input("Približný čas začiatku")
         
         meno = st.text_input("Meno a telefón")
-        detaily = st.text_area("Detaily (miesto, typ akcie...)")
+        detaily = st.text_area("Detaily (miesto, typ akcie, počet ľudí...)")
         
         if st.form_submit_button("ODOSLAŤ REZERVÁCIU"):
             db = nacti_data()
@@ -92,7 +93,7 @@ if menu == "🎸 Rezervácia":
             
             posli_upozornenie(f"Nový dopyt na {datum} od {meno}")
             st.balloons()
-            st.success("Vaša požiadavka bola prijatá! Počkajte na potvrdenie kapelou. ✅")
+            st.success("Vaša požiadavka bola prijatá! Ozveme sa vám. ✅")
 
 # --- 2. ADMIN ---
 else:
@@ -120,6 +121,7 @@ else:
         # TAB 1: ČAKAJÚCE NA POTVRDENIE
         with tab1:
             cakajuce = [a for a in db if a.get("stav") == "cakajuce"]
+            cakajuce.sort(key=lambda x: x['datum'])
             if not cakajuce:
                 st.write("Žiadne nové dopyty.")
             else:
@@ -138,7 +140,7 @@ else:
                             uloz_data(db)
                             st.rerun()
 
-        # TAB 2: SCHVÁLENÉ AKCIE
+        # TAB 2: SCHVÁLENÉ AKCIE S MOŽNOSŤOU ÚPRAVY
         with tab2:
             schvalene = [a for a in db if a.get("stav") == "schvalene" or "stav" not in a]
             if not schvalene:
@@ -147,9 +149,22 @@ else:
                 schvalene.sort(key=lambda x: x['datum'])
                 for i, a in enumerate(schvalene):
                     with st.expander(f"📅 {a['datum']} - {a['poznamka'][:30]}..."):
-                        st.write(f"**Čas:** {a['cas']}")
-                        st.write(f"**Detaily:** {a['poznamka']}")
-                        if st.button("Vymazať z kalendára", key=f"del{i}"):
+                        e_date = st.date_input("Upraviť dátum", value=datetime.strptime(a['datum'], '%Y-%m-%d'), key=f"d_{i}")
+                        e_time = st.text_input("Upraviť čas", value=a['cas'], key=f"t_{i}")
+                        e_note = st.text_area("Upraviť poznámku", value=a['poznamka'], key=f"n_{i}")
+                        
+                        col1, col2 = st.columns(2)
+                        if col1.button("💾 ULOŽIŤ ZMENY", key=f"s_{i}"):
+                            for item in db:
+                                if item['id'] == a['id']:
+                                    item['datum'] = str(e_date)
+                                    item['cas'] = e_time
+                                    item['poznamka'] = e_note
+                                    break
+                            uloz_data(db)
+                            st.success("Aktualizované!")
+                            st.rerun()
+                        if col2.button("🗑️ Vymazať", key=f"del{i}"):
                             db = [item for item in db if item['id'] != a['id']]
                             uloz_data(db)
                             st.rerun()
@@ -159,8 +174,8 @@ else:
             with st.form("manual_add"):
                 d_in = st.date_input("Dátum")
                 c_in = st.time_input("Čas")
-                p_in = st.text_input("Poznámka")
-                if st.form_submit_button("Uložiť priamo do kalendára"):
+                p_in = st.text_input("Miesto/Názov")
+                if st.form_submit_button("Uložiť do kalendára"):
                     db.append({
                         "id": str(datetime.now().timestamp()), 
                         "datum": str(d_in), 
@@ -169,7 +184,7 @@ else:
                         "stav": "schvalene"
                     })
                     uloz_data(db)
-                    st.success("Akcia bola pridaná priamo do kalendára!")
+                    st.success("Pridané!")
                     st.rerun()
 
 footer()
