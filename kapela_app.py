@@ -18,25 +18,23 @@ KAPELA_FOTO_URL = "https://i.postimg.cc/k4GMHzmG/1000027016.jpg"
 def apply_style():
     st.markdown(f"""
         <style>
-        /* Celoobrazovkové pozadie - upravené centrovanie! */
+        /* Celoobrazovkové pozadie - POSUNUTÉ DOPRAVA */
         .stApp {{
             background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)), 
                         url("{KAPELA_FOTO_URL}");
             background-size: cover;
-            /* ZMENA: Pritlačí fotku k ľavému kraju, aby bolo vidno ľavého harmonikára */
-            background-position: top left; 
+            /* ZMENA: 15% zľava posunie fotku doprava, aby si tam bol celý */
+            background-position: 15% top; 
             background-attachment: fixed;
             color: #ffffff;
         }}
         
-        /* Transparentný bočný panel */
         [data-testid="stSidebar"] {{
             background-color: rgba(20, 20, 20, 0.8) !important;
             backdrop-filter: blur(12px);
             border-right: 1px solid #d4af37;
         }}
         
-        /* Zlaté nadpisy */
         h1, h2, h3, h4 {{ 
             color: #d4af37 !important; 
             font-family: 'Playfair Display', serif; 
@@ -44,7 +42,6 @@ def apply_style():
             text-align: center;
         }}
 
-        /* Formulár v elegantnom boxe */
         .stForm {{
             background-color: rgba(0, 0, 0, 0.7) !important;
             border: 2px solid #d4af37 !important;
@@ -54,23 +51,17 @@ def apply_style():
             box-shadow: 0px 15px 35px rgba(0,0,0,0.9);
         }}
 
-        /* Brutálne zlaté tlačidlá */
         .stButton>button {{ 
             background-color: #d4af37 !important; 
             color: black !important; 
             border-radius: 12px !important; 
             font-weight: bold !important;
-            font-size: 1.1rem !important;
             height: 3.5em;
             border: none !important;
             transition: all 0.4s ease;
-        }}
-        .stButton>button:hover {{
-            transform: translateY(-3px);
-            box-shadow: 0px 8px 25px #d4af37;
+            width: 100%;
         }}
         
-        /* Päta stránky */
         .footer-text {{ 
             text-align: center; 
             color: #eee; 
@@ -110,7 +101,7 @@ def footer():
     """, unsafe_allow_html=True)
 
 # --- ŠTART APP ---
-st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎻", layout="centered")
+st.set_page_config(page_title="Ovčanske Parobci", page_icon="琴", layout="centered")
 apply_style()
 
 # --- SIDEBAR ---
@@ -132,7 +123,7 @@ if menu == "🎸 Rezervácia":
             cas = st.time_input("Čas (približne)")
         
         meno = st.text_input("Vaše meno a telefónne číslo")
-        detaily = st.text_area("Povedzte nám viac (miesto konania, typ akcie, počet ľudí...)")
+        detaily = st.text_area("Povedzte nám viac (miesto konania, typ akcie...)")
         
         if st.form_submit_button("ODOSLAŤ REZERVÁCIU"):
             db = nacti_data()
@@ -177,7 +168,7 @@ else:
                     uloz_data(db)
                     st.success("Zapísané do kalendára!")
 
-        with t2:
+        with tab2:
             db = nacti_data()
             if db:
                 db.sort(key=lambda x: x['datum'])
