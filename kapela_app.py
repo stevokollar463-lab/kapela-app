@@ -10,7 +10,7 @@ PB_API_KEY = "o.Ir4LWAKm78pwEhpKkAf6WZY9uZPNCkSm"
 LOGIN_MENO = "ovcanskeparobci"
 LOGIN_HESLO = "OvcanskeParobci123"
 
-# HLAVNÁ FOTKA POZADIA
+# HLAVNÁ FOTKA POZADIA (Priamy odkaz v plnej kvalite)
 KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg" 
 
 # --- DIZAJN ---
@@ -21,13 +21,27 @@ def apply_style():
             background: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), 
                         url("{KAPELA_FOTO_URL}");
             background-size: cover;
-            background-position: left center;
+            background-position: center center;
             background-attachment: fixed;
+            
+            /* MAXIMÁLNA OSTROSŤ PRE POZADIE */
             image-rendering: -webkit-optimize-contrast;
+            image-rendering: crisp-edges;
             color: #ffffff;
         }}
-        [data-testid="stSidebar"] {{ background-color: rgba(20, 20, 20, 0.85) !important; backdrop-filter: blur(12px); border-right: 1px solid #d4af37; }}
-        h1, h2, h3, h4 {{ color: #d4af37 !important; font-family: 'Playfair Display', serif; text-shadow: 4px 4px 8px #000000; text-align: center; }}
+        
+        [data-testid="stSidebar"] {{ 
+            background-color: rgba(20, 20, 20, 0.85) !important; 
+            backdrop-filter: blur(12px); 
+            border-right: 1px solid #d4af37; 
+        }}
+        
+        h1, h2, h3, h4 {{ 
+            color: #d4af37 !important; 
+            font-family: 'Playfair Display', serif; 
+            text-shadow: 4px 4px 8px #000000; 
+            text-align: center; 
+        }}
         
         /* Box pre zloženie kapely */
         .instrument-box {{
@@ -41,8 +55,22 @@ def apply_style():
             text-shadow: 2px 2px 4px #000;
         }}
 
-        .stForm {{ background-color: rgba(0, 0, 0, 0.8) !important; border: 2px solid #d4af37 !important; border-radius: 20px; padding: 30px; }}
-        .stButton>button {{ background-color: #d4af37 !important; color: black !important; border-radius: 12px !important; font-weight: bold !important; width: 100%; transition: 0.3s; }}
+        .stForm {{ 
+            background-color: rgba(0, 0, 0, 0.8) !important; 
+            border: 2px solid #d4af37 !important; 
+            border-radius: 20px; 
+            padding: 30px; 
+        }}
+        
+        .stButton>button {{ 
+            background-color: #d4af37 !important; 
+            color: black !important; 
+            border-radius: 12px !important; 
+            font-weight: bold !important; 
+            width: 100%; 
+            transition: 0.3s; 
+        }}
+        .stButton>button:hover {{ transform: scale(1.02); box-shadow: 0px 0px 15px #d4af37; }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -100,12 +128,15 @@ if menu == "🎸 Rezervácia":
 # --- 2. GALÉRIA ---
 elif menu == "📸 Galéria":
     st.title("📸 Naša Zábava")
+    st.write("Pozrite si momentky z našich hraní.")
+    
     fotky = [
-        "https://i.postimg.cc/RWcWCV9t/received-1165768235166057.jpg",
-        "https://i.postimg.cc/CRjRMLYD/received-640306331056375.jpg",
-        "https://i.postimg.cc/QFpFNxsW/received-796698713423840.jpg",
-        "https://i.postimg.cc/yDFD6YBW/received-936809825229820.jpg"
+        "https://i.postimg.cc/vZKfzcN0/received-1165768235166057.jpg",
+        "https://i.postimg.cc/6pPn0ymH/received-640306331056375.jpg",
+        "https://i.postimg.cc/cLzwmrbT/received-796698713423840.jpg",
+        "https://i.postimg.cc/RZYKRND1/received-936809825229820.jpg"
     ]
+    
     for foto in fotky:
         st.image(foto, use_container_width=True)
 
@@ -113,21 +144,23 @@ elif menu == "📸 Galéria":
 else:
     st.title("🔐 Administrácia")
     if 'auth' not in st.session_state: st.session_state['auth'] = False
+    
     if not st.session_state['auth']:
         with st.form("login"):
             u = st.text_input("Užívateľ"); h = st.text_input("Heslo", type="password")
             if st.form_submit_button("Vstúpiť"):
                 if u == LOGIN_MENO and h == LOGIN_HESLO: st.session_state['auth'] = True; st.rerun()
-                else: st.error("Chyba!")
+                else: st.error("Nesprávne údaje!")
     else:
         if st.sidebar.button("Odhlásiť sa"): st.session_state['auth'] = False; st.rerun()
         t1, t2, t3 = st.tabs(["📩 Nové dopyty", "📅 Kalendár", "➕ Pridať"])
         db = nacti_data()
-        # ... zvyšok admin kódu zostáva rovnaký ...
+
         with t1:
             cakajuce = [a for a in db if a.get("stav") == "cakajuce"]
+            cakajuce.sort(key=lambda x: x['datum'])
             for i, a in enumerate(cakajuce):
-                with st.expander(f"{a['datum']} - {a['poznamka'][:30]}..."):
+                with st.expander(f"Dopyt: {a['datum']} - {a['poznamka'][:30]}..."):
                     c1, col2 = st.columns(2)
                     if c1.button("✅ Schváliť", key=f"ok{i}"):
                         for item in db:
@@ -136,6 +169,7 @@ else:
                     if col2.button("🗑️ Zmazať", key=f"no{i}"):
                         db = [item for item in db if item['id'] != a['id']]
                         uloz_data(db); st.rerun()
+
         with t2:
             schvalene = [a for a in db if a.get("stav") == "schvalene" or "stav" not in a]
             schvalene.sort(key=lambda x: x['datum'])
@@ -143,17 +177,19 @@ else:
                 with st.expander(f"📅 {a['datum']} - {a['poznamka'][:30]}..."):
                     e_date = st.date_input("Dátum", value=datetime.strptime(a['datum'], '%Y-%m-%d'), key=f"d_{i}")
                     e_note = st.text_area("Poznámka", value=a['poznamka'], key=f"n_{i}")
-                    if st.button("💾 Uložiť", key=f"s_{i}"):
+                    c1, col2 = st.columns(2)
+                    if c1.button("💾 Uložiť", key=f"s_{i}"):
                         for item in db:
                             if item['id'] == a['id']: item['datum'] = str(e_date); item['poznamka'] = e_note
                         uloz_data(db); st.rerun()
-                    if st.button("🗑️ Vymazať", key=f"del{i}"):
+                    if col2.button("🗑️ Vymazať", key=f"del{i}"):
                         db = [item for item in db if item['id'] != a['id']]
                         uloz_data(db); st.rerun()
+
         with t3:
-            with st.form("add"):
+            with st.form("add_manual"):
                 d = st.date_input("Dátum"); p = st.text_input("Poznámka")
-                if st.form_submit_button("Uložiť"):
+                if st.form_submit_button("Uložiť do kalendára"):
                     db.append({"id": str(datetime.now().timestamp()), "datum": str(d), "cas": "---", "poznamka": p, "stav": "schvalene"})
                     uloz_data(db); st.rerun()
 
