@@ -1,5 +1,4 @@
 import streamlit as st
-import pandas as pd
 import json
 import os
 from datetime import datetime
@@ -11,7 +10,7 @@ PB_API_KEY = "o.Ir4LWAKm78pwEhpKkAf6WZY9uZPNCkSm"
 LOGIN_MENO = "ovcanskeparobci"
 LOGIN_HESLO = "OvcanskeParobci123"
 
-# HLAVNÁ FOTKA
+# HLAVNÁ FOTKA POZADIA
 KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg" 
 
 # --- DIZAJN ---
@@ -80,21 +79,25 @@ if menu == "🎸 Rezervácia":
             st.balloons()
             st.success("Dopyt odoslaný! Ozveme sa vám. ✅")
 
-# --- 2. GALÉRIA ---
+# --- 2. GALÉRIA (AKTUALIZOVANÁ O TVOJE NOVÉ FOTKY) ---
 elif menu == "📸 Galéria":
     st.title("📸 Naša Zábava")
-    st.write("Tu môžete vidieť, ako to žije na akciách s Ovčanskými Parobkami!")
+    st.write("Pozrite si momentky z našich hraní.")
     
-    # Linky na fotky (tu si môžeš doplniť ďalšie linky z PostImages)
+    # NOVÉ PRIAME ODKAZY Z TVOJEJ GALÉRIE
     fotky = [
-        KAPELA_FOTO_URL,
-        "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg" 
+        "https://i.postimg.cc/8zY46M87/image-38b3a6.jpg",
+        "https://i.postimg.cc/y8B4687d/image-38b066.png",
+        "https://i.postimg.cc/q7H9q73p/image-2ed166.jpg",
+        "https://i.postimg.cc/B6H6p1b2/image-2ec9e6.jpg"
     ]
     
     col1, col2 = st.columns(2)
     for i, foto in enumerate(fotky):
-        if i % 2 == 0: col1.image(foto, use_container_width=True)
-        else: col2.image(foto, use_container_width=True)
+        if i % 2 == 0:
+            col1.image(foto, use_container_width=True)
+        else:
+            col2.image(foto, use_container_width=True)
 
 # --- 3. ADMIN ---
 else:
