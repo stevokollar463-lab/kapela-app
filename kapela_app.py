@@ -18,20 +18,29 @@ KAPELA_FOTO_URL = "https://i.postimg.cc/k4GMHzmG/1000027016.jpg"
 def apply_style():
     st.markdown(f"""
         <style>
-        /* Celoobrazovkové pozadie - POSUNUTÉ DOPRAVA */
+        /* AGRESÍVNE POSUNUTIE FOTKY */
         .stApp {{
             background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)), 
                         url("{KAPELA_FOTO_URL}");
             background-size: cover;
-            /* ZMENA: 15% zľava posunie fotku doprava, aby si tam bol celý */
-            background-position: 15% top; 
+            /* POSUNUTÉ O 35% - to by malo vytiahnuť ľavého harmonikára */
+            background-position: 35% 20%; 
             background-attachment: fixed;
+            background-repeat: no-repeat;
             color: #ffffff;
         }}
         
+        /* Úprava pre mobilné telefóny (aby vás tam bolo vidno čo najviac) */
+        @media (max-width: 600px) {{
+            .stApp {{
+                background-position: 25% top !important;
+                background-attachment: scroll !important;
+            }}
+        }}
+
         [data-testid="stSidebar"] {{
-            background-color: rgba(20, 20, 20, 0.8) !important;
-            backdrop-filter: blur(12px);
+            background-color: rgba(20, 20, 20, 0.85) !important;
+            backdrop-filter: blur(15px);
             border-right: 1px solid #d4af37;
         }}
         
@@ -43,7 +52,7 @@ def apply_style():
         }}
 
         .stForm {{
-            background-color: rgba(0, 0, 0, 0.7) !important;
+            background-color: rgba(0, 0, 0, 0.75) !important;
             border: 2px solid #d4af37 !important;
             border-radius: 20px;
             padding: 30px;
@@ -101,7 +110,7 @@ def footer():
     """, unsafe_allow_html=True)
 
 # --- ŠTART APP ---
-st.set_page_config(page_title="Ovčanske Parobci", page_icon="琴", layout="centered")
+st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎻", layout="centered")
 apply_style()
 
 # --- SIDEBAR ---
