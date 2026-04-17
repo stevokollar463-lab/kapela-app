@@ -11,39 +11,32 @@ PB_API_KEY = "o.Ir4LWAKm78pwEhpKkAf6WZY9uZPNCkSm"
 LOGIN_MENO = "ovcanskeparobci"
 LOGIN_HESLO = "OvcanskeParobci123"
 
-# Kvalitný link z PostImages
-KAPELA_FOTO_URL = "https://i.postimg.cc/k4GMHzmG/1000027016.jpg" 
+# NOVÝ KVALITNÝ LINK NA OREZANÚ FOTKU
+KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg" 
 
-# --- DIZAJN (CSS) ---
+# --- BRUTÁLNY DIZAJN (CSS) ---
 def apply_style():
     st.markdown(f"""
         <style>
-        /* AGRESÍVNE POSUNUTIE FOTKY */
+        /* Celoobrazovkové pozadie v top kvalite - UPRAVENÉ POSUNUTIE */
         .stApp {{
             background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)), 
                         url("{KAPELA_FOTO_URL}");
             background-size: cover;
-            /* POSUNUTÉ O 35% - to by malo vytiahnuť ľavého harmonikára */
-            background-position: 35% 20%; 
+            /* ZMENA: Pritlačí fotku k ľavému kraju, aby bolo vidno ľavého harmonikára */
+            background-position: left center;
             background-attachment: fixed;
-            background-repeat: no-repeat;
             color: #ffffff;
         }}
         
-        /* Úprava pre mobilné telefóny (aby vás tam bolo vidno čo najviac) */
-        @media (max-width: 600px) {{
-            .stApp {{
-                background-position: 25% top !important;
-                background-attachment: scroll !important;
-            }}
-        }}
-
+        /* Transparentný bočný panel */
         [data-testid="stSidebar"] {{
-            background-color: rgba(20, 20, 20, 0.85) !important;
-            backdrop-filter: blur(15px);
+            background-color: rgba(20, 20, 20, 0.8) !important;
+            backdrop-filter: blur(12px);
             border-right: 1px solid #d4af37;
         }}
         
+        /* Zlaté nadpisy */
         h1, h2, h3, h4 {{ 
             color: #d4af37 !important; 
             font-family: 'Playfair Display', serif; 
@@ -51,8 +44,9 @@ def apply_style():
             text-align: center;
         }}
 
+        /* Formulár v elegantnom boxe */
         .stForm {{
-            background-color: rgba(0, 0, 0, 0.75) !important;
+            background-color: rgba(0, 0, 0, 0.7) !important;
             border: 2px solid #d4af37 !important;
             border-radius: 20px;
             padding: 30px;
@@ -60,17 +54,23 @@ def apply_style():
             box-shadow: 0px 15px 35px rgba(0,0,0,0.9);
         }}
 
+        /* Brutálne zlaté tlačidlá */
         .stButton>button {{ 
             background-color: #d4af37 !important; 
             color: black !important; 
             border-radius: 12px !important; 
             font-weight: bold !important;
+            font-size: 1.1rem !important;
             height: 3.5em;
             border: none !important;
             transition: all 0.4s ease;
-            width: 100%;
+        }}
+        .stButton>button:hover {{
+            transform: translateY(-3px);
+            box-shadow: 0px 8px 25px #d4af37;
         }}
         
+        /* Päta stránky */
         .footer-text {{ 
             text-align: center; 
             color: #eee; 
@@ -110,7 +110,7 @@ def footer():
     """, unsafe_allow_html=True)
 
 # --- ŠTART APP ---
-st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎻", layout="centered")
+st.set_page_config(page_title="Ovčanske Parobci", page_icon="琴", layout="centered")
 apply_style()
 
 # --- SIDEBAR ---
@@ -129,22 +129,22 @@ if menu == "🎸 Rezervácia":
         with col1:
             datum = st.date_input("Dátum akcie", min_value=datetime.now())
         with col2:
-            cas = st.time_input("Čas (približne)")
+            cas = st.time_input("Približný čas začiatku")
         
         meno = st.text_input("Vaše meno a telefónne číslo")
-        detaily = st.text_area("Povedzte nám viac (miesto konania, typ akcie...)")
+        detaily = st.text_area("Povedzte nám viac (miesto konania, typ akcie, počet ľudí...)")
         
-        if st.form_submit_button("ODOSLAŤ REZERVÁCIU"):
+        if st.form_submit_button("ODOSLAŤ NEZÁVÄZNÚ REZERVÁCIU"):
             db = nacti_data()
             if any(a['datum'] == str(datum) for a in db):
-                st.error("Prepáčte, tento termín je už obsadený.")
+                st.error("Prepáčte, tento termín je už obsadený. Skúste prosím iný dátum.")
             elif not meno:
                 st.warning("Uveďte prosím aspoň meno a telefón.")
             else:
-                msg = f"DOPYT Z WEBU!\nKedy: {datum} o {cas}\nKontakt: {meno}\nInfo: {detaily}"
-                if posli_upozornenie(msg):
+                text_notif = f"NOVÝ DOPYT NA WEB!\nDátum: {datum}\nČas: {cas}\nKontakt: {meno}\nInfo: {detaily}"
+                if posli_upozornenie(text_notif):
                     st.balloons()
-                    st.success("Vaša požiadavka bola úspešne odoslaná! Ozveme sa vám. ✅")
+                    st.success("Vaša požiadavka bola úspešne odoslaná! Ozveme sa vám čo najskôr. ✅")
 
 else:
     st.title("🔐 Správa akcií")
@@ -173,11 +173,16 @@ else:
                 p_in = st.text_input("Názov/Miesto")
                 if st.form_submit_button("ULOŽIŤ"):
                     db = nacti_data()
-                    db.append({"id": str(datetime.now().timestamp()), "datum": str(d_in), "cas": str(c_in), "poznamka": p_in})
+                    db.append({
+                        "id": str(datetime.now().timestamp()), 
+                        "datum": str(d_in), 
+                        "cas": str(c_in), 
+                        "poznamka": p_in
+                    })
                     uloz_data(db)
                     st.success("Zapísané do kalendára!")
 
-        with tab2:
+        with t2:
             db = nacti_data()
             if db:
                 db.sort(key=lambda x: x['datum'])
@@ -186,12 +191,13 @@ else:
                         nd = st.date_input("Dátum", value=datetime.strptime(a['datum'], '%Y-%m-%d'), key=f"d{i}")
                         nc = st.text_input("Čas", value=a['cas'], key=f"c{i}")
                         np = st.text_input("Miesto", value=a['poznamka'], key=f"p{i}")
-                        c1, c2 = st.columns(2)
-                        with c1:
+                        
+                        col1, col2 = st.columns(2)
+                        with col1:
                             if st.button("Uložiť", key=f"s{i}"):
                                 db[i] = {"id": a['id'], "datum": str(nd), "cas": nc, "poznamka": np}
                                 uloz_data(db); st.rerun()
-                        with c2:
+                        with col2:
                             if st.button("Zmazať", key=f"r{i}"):
                                 db.pop(i); uloz_data(db); st.rerun()
             else:
