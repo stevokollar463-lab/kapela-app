@@ -2,141 +2,131 @@ import streamlit as st
 import pandas as pd
 import json
 import os
-from datetime import datetime, timedelta
+from datetime import datetime
 from pushbullet import Pushbullet
 
-# --- NASTAVENIA ---
+# --- KONFIGURÁCIA ---
 DB_FILE = "kalendar_kapely.json"
 PB_API_KEY = "o.Ir4LWAKm78pwEhpKkAf6WZY9uZPNCkSm"
+
+# Prihlasovacie údaje, ktoré si chcel
+LOGIN_MENO = "ovcanskeparobci"
+LOGIN_HESLO = "OvcanskeParobci123"
 
 def posli_upozornenie(text):
     try:
         pb = Pushbullet(PB_API_KEY)
-        pb.push_note("🎸 OVČANSKE PAROBCI: Nový dopyt!", text)
+        pb.push_note("🎸 KAPELA NOTIFIKÁCIA", text)
         return True
-    except Exception as e:
-        st.error(f"Chyba pri odosielaní: {e}")
+    except:
         return False
 
-# Inicializácia databázy
 if not os.path.exists(DB_FILE):
     with open(DB_FILE, "w") as f:
         json.dump([], f)
 
 def nacti_data():
-    with open(DB_FILE, "r") as f:
-        return json.load(f)
+    try:
+        with open(DB_FILE, "r") as f:
+            return json.load(f)
+    except:
+        return []
 
 def uloz_data(data):
     with open(DB_FILE, "w") as f:
         json.dump(data, f, indent=4)
 
-# --- GRAFICKÉ ROZHRANIE (UI) ---
+# --- UI NASTAVENIA ---
 st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎸")
 
-# --- SIDEBAR MENU ---
-st.sidebar.title("Ovčanske Parobci")
-menu = ["🎸 Rezervácia (pre verejnosť)", "🔐 Správa kapely"]
-choice = st.sidebar.selectbox("Kam chcete ísť?", menu)
+# Menu vľavo
+st.sidebar.title("MENU")
+menu_moznost = st.sidebar.radio("Vyberte si:", ["🎸 Rezervácia pre verejnosť", "🔐 Správa kapely"])
 
-# --- 1. VEREJNÁ ČASŤ: REZERVÁCIA ---
-if choice == "🎸 Rezervácia (pre verejnosť)":
-    st.header("Chcete, aby sme vám zahrali?")
-    st.write("Vyberte si termín vašej oslavy alebo svadby a my sa vám ozveme!")
+# --- 1. VEREJNÁ ČASŤ ---
+if menu_moznost == "🎸 Rezervácia pre verejnosť":
+    st.title("🎸 Rezervujte si Ovčanských Parobkov!")
+    st.write("Vyplňte formulár a my sa vám ozveme, či máme voľno.")
     
-    data = nacti_data()
-    obsadene_datumy = [akcia['datum'] for akcia in data]
-
-    with st.form("verejna_rezervacia"):
-        datum = st.date_input("Dátum vašej akcie", min_value=datetime.now())
-        cas = st.time_input("Približný čas začiatku")
-        meno = st.text_input("Vaše meno a telefónne číslo")
-        poznamka = st.text_area("O akú akciu ide? (napr. 50-tka v Krompachoch)")
-        
-        submitted = st.form_submit_button("Odoslať nezáväzný dopyt")
-        
-        if submitted:
-            datum_str = str(datum)
-            if datum_str in obsadene_datumy:
-                st.error(f"Prepáčte, ale termín {datum_str} už máme obsadený inou akciou. 😔")
-            elif not meno or not poznamka:
-                st.warning("Prosím, vyplňte meno a detaily akcie.")
-            else:
-                # Odošle notifikáciu členom kapely
-                msg = f"Nová žiadosť! \nKedy: {datum_str} o {cas}\nKto: {meno}\nČo: {poznamka}"
-                if posli_upozornenie(msg):
-                    st.success("Vaša požiadavka bola odoslaná! Kapela vás bude čoskoro kontaktovať. ✅")
-                    # Voliteľne: Môžeš to automaticky pridať do JSONu ako "ČAKAJÚCE"
-                    # Ak to chceš, stačí tu dopísať kód na uloženie do databázy.
-
-# --- 2. ADMIN ČASŤ: SPRÁVA KAPELY ---
-elif choice == "🔐 Správa kapely":
-    # Tu môžeš pridať jednoduché heslo, ak chceš
-    st.title("Administrácia")
+    st.divider()
     
-    st.sidebar.header("Diagnostika")
-    if st.sidebar.button("🚀 OTESTOVAŤ SPOJENIE"):
-        if posli_upozornenie("Testovacia správa! Spojenie funguje. ✅"):
-            st.sidebar.success("Píplo to!")
-
-    sub_menu = ["Pridať akciu", "Zoznam akcií"]
-    sub_choice = st.selectbox("Vyberte akciu", sub_menu)
-
-    if sub_choice == "Pridať akciu":
-        st.subheader("Zapíš nový termín (Potvrdený)")
-        with st.form("nova_akcia_form"):
-            datum = st.date_input("Dátum akcie", min_value=datetime.now())
-            cas = st.time_input("Čas")
-            poznamka = st.text_input("Názov akcie / Miesto")
-            submitted = st.form_submit_button("Uložiť do kalendára")
+    with st.form("form_rezervacia"):
+        datum = st.date_input("Dátum akcie", min_value=datetime.now())
+        cas = st.time_input("Približný čas (odkedy hráme)")
+        meno = st.text_input("Vaše meno a kontakt (mobil/email)")
+        poznamka = st.text_area("O akú akciu ide? (napr. Svadba, 50-tka, Krstiny...)")
+        
+        odoslat = st.form_submit_button("ODOSLAŤ DOPYT")
+        
+        if odoslat:
+            data = nacti_data()
+            obsadene = [a['datum'] for a in data]
             
-            if submitted:
-                if not poznamka:
-                    st.error("Doplň názov akcie.")
+            if str(datum) in obsadene:
+                st.error(f"Prepáčte, termín {datum} už máme obsadený.")
+            elif not meno:
+                st.warning("Zadajte prosím svoje meno a kontakt.")
+            else:
+                msg = f"NOVÁ REZERVÁCIA!\nKedy: {datum} o {cas}\nKto: {meno}\nČo: {poznamka}"
+                if posli_upozornenie(msg):
+                    st.success("Dopyt bol odoslaný! Ozveme sa vám. ✅")
                 else:
+                    st.error("Chyba pri odosielaní správy kapele.")
+
+# --- 2. ADMIN ČASŤ (LOGIN) ---
+else:
+    st.title("🔐 Sekcia pre členov")
+
+    # Kontrola prihlásenia v pamäti prehliadača
+    if 'auth' not in st.session_state:
+        st.session_state['auth'] = False
+
+    if not st.session_state['auth']:
+        # TU SÚ TIE POLÍČKA, KTORÉ HĽADÁŠ
+        st.info("Pre vstup do správy sa musíte prihlásiť.")
+        vstup_meno = st.text_input("Užívateľské meno")
+        vstup_heslo = st.text_input("Heslo", type="password")
+        
+        if st.button("Prihlásiť sa"):
+            if vstup_meno == LOGIN_MENO and vstup_heslo == LOGIN_HESLO:
+                st.session_state['auth'] = True
+                st.rerun()
+            else:
+                st.error("Nesprávne meno alebo heslo!")
+    else:
+        # TOTO UVIDÍŠ AŽ KEĎ SA PRIHLÁSIŠ
+        st.sidebar.success("Ste prihlásený")
+        if st.sidebar.button("Odhlásiť sa"):
+            st.session_state['auth'] = False
+            st.rerun()
+
+        st.subheader("Administrácia akcií")
+        
+        tab1, tab2 = st.tabs(["Pridať novú akciu", "Zoznam všetkých akcií"])
+        
+        with tab1:
+            with st.form("admin_add"):
+                d = st.date_input("Dátum")
+                c = st.time_input("Čas")
+                p = st.text_input("Miesto / Názov")
+                submit = st.form_submit_button("ULOŽIŤ AKCIU")
+                
+                if submit:
                     data = nacti_data()
-                    nova_akcia = {
-                        "id": str(datetime.now().timestamp()),
-                        "datum": str(datum),
-                        "cas": str(cas),
-                        "poznamka": poznamka,
-                        "notif_mesiac": False,
-                        "notif_2tyzdne": False,
-                        "notif_1tyzden": False
-                    }
-                    data.append(nova_akcia)
+                    nova = {"datum": str(d), "cas": str(c), "poznamka": p}
+                    data.append(nova)
                     uloz_data(data)
-                    st.success(f"Akcia uložená!")
+                    st.success("Akcia uložená do kalendára!")
 
-    elif sub_choice == "Zoznam akcií":
-        st.subheader("Plánované akcie")
-        data = nacti_data()
-        if data:
-            for idx, akcia in enumerate(data):
-                with st.expander(f"📅 {akcia['datum']} - {akcia['poznamka']}"):
-                    st.write(f"**Čas:** {akcia['cas']}")
-                    if st.button(f"🔔 Poslať pripomienku hneď", key=f"send_{idx}"):
-                        posli_upozornenie(f"PRIPOMIENKA: {akcia['poznamka']} dňa {akcia['datum']}!")
-        else:
-            st.info("Žiadne plánované akcie.")
-
-# --- AUTOMATICKÁ KONTROLA TERMÍNOV (beží na pozadí) ---
-# ... (tvoj pôvodný kód pre automatiku) ...
-data = nacti_data()
-dnes = datetime.now().date()
-zmena = False
-terminy = {"notif_mesiac": 30, "notif_2tyzdne": 14, "notif_1tyzden": 7}
-
-for akcia in data:
-    try:
-        termin_akcie = datetime.strptime(akcia["datum"], "%Y-%m-%d").date()
-        rozdiel = (termin_akcie - dnes).days
-        for kluc, dni in terminy.items():
-            if rozdiel == dni and not akcia.get(kluc, False):
-                if posli_upozornenie(f"AUTOMATIKA: {akcia['poznamka']} o {dni} dní!"):
-                    akcia[kluc] = True
-                    zmena = True
-    except:
-        continue
-if zmena:
-    uloz_data(data)
+        with tab2:
+            data = nacti_data()
+            if data:
+                for idx, akcia in enumerate(data):
+                    st.write(f"📅 **{akcia['datum']}** - {akcia['poznamka']} ({akcia['cas']})")
+                
+                st.divider()
+                if st.button("🗑️ VYMAZAŤ VŠETKO"):
+                    uloz_data([])
+                    st.rerun()
+            else:
+                st.write("Zatiaľ nemáte žiadne akcie.")
