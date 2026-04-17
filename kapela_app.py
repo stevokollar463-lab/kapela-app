@@ -79,17 +79,17 @@ if menu == "🎸 Rezervácia":
             st.balloons()
             st.success("Dopyt odoslaný! Ozveme sa vám. ✅")
 
-# --- 2. GALÉRIA (AKTUALIZOVANÁ O TVOJE NOVÉ FOTKY) ---
+# --- 2. GALÉRIA (OPRAVENÉ ODKAZY) ---
 elif menu == "📸 Galéria":
     st.title("📸 Naša Zábava")
-    st.write("Pozrite si momentky z našich hraní.")
+    st.write("Pozrite si momentky z našich akcií.")
     
-    # NOVÉ PRIAME ODKAZY Z TVOJEJ GALÉRIE
+    # NOVÉ FUNKČNÉ PRIAME ODKAZY
     fotky = [
-        "https://i.postimg.cc/8zY46M87/image-38b3a6.jpg",
-        "https://i.postimg.cc/y8B4687d/image-38b066.png",
-        "https://i.postimg.cc/q7H9q73p/image-2ed166.jpg",
-        "https://i.postimg.cc/B6H6p1b2/image-2ec9e6.jpg"
+        "https://i.postimg.cc/RWcWCV9t/received-1165768235166057.jpg",
+        "https://i.postimg.cc/CRjRMLYD/received-640306331056375.jpg",
+        "https://i.postimg.cc/QFpFNxsW/received-796698713423840.jpg",
+        "https://i.postimg.cc/yDFD6YBW/received-936809825229820.jpg"
     ]
     
     col1, col2 = st.columns(2)
