@@ -7,126 +7,171 @@ from pushbullet import Pushbullet
 
 # --- KONFIGURÁCIA ---
 DB_FILE = "kalendar_kapely.json"
-PB_API_KEY = "o.Ir4LWAKm78pwEhpKkAf6WZY9uZPNCkSm"
-
-# Prihlasovacie údaje, ktoré si chcel
+PB_API_KEY = "o.Ir4LW4Km78pwEhpKkAf6WZY9uZPNCkSm"
 LOGIN_MENO = "ovcanskeparobci"
 LOGIN_HESLO = "OvcanskeParobci123"
 
+# Odkaz na vašu fotku (vymeň URL za link na vašu reálnu fotku, ak máš)
+HEADER_IMAGE = "https://images.unsplash.com/photo-1514525253361-bee8718a74a2?q=80&w=1000&auto=format&fit=crop"
+
+# --- BRUTÁLNY DIZAJN (CSS) ---
+def apply_style():
+    st.markdown(f"""
+        <style>
+        /* Hlavné pozadie */
+        .stApp {{
+            background-color: #0e1117;
+            color: #ffffff;
+        }}
+        
+        /* Úprava bočného panelu */
+        [data-testid="stSidebar"] {{
+            background-color: #161b22;
+            border-right: 2px solid #d4af37;
+        }}
+        
+        /* Nadpisy */
+        h1, h2, h3 {{
+            color: #d4af37 !important;
+            font-family: 'Playfair Display', serif;
+            text-transform: uppercase;
+            letter-spacing: 2px;
+        }}
+        
+        /* Tlačidlá */
+        .stButton>button {{
+            background-color: #d4af37 !important;
+            color: black !important;
+            border-radius: 20px !important;
+            border: none !important;
+            font-weight: bold !important;
+            width: 100%;
+            transition: 0.3s;
+        }}
+        
+        .stButton>button:hover {{
+            transform: scale(1.02);
+            box-shadow: 0px 0px 15px #d4af37;
+        }}
+        
+        /* Formuláre */
+        .stForm {{
+            border: 1px solid #d4af37 !important;
+            padding: 20px;
+            border-radius: 15px;
+            background-color: #1c2128;
+        }}
+        
+        /* Skrytie Streamlit menu */
+        #MainMenu {{visibility: hidden;}}
+        footer {{visibility: hidden;}}
+        </style>
+    """, unsafe_allow_html=True)
+
+# --- FUNKCIE ---
 def posli_upozornenie(text):
     try:
         pb = Pushbullet(PB_API_KEY)
-        pb.push_note("🎸 KAPELA NOTIFIKÁCIA", text)
+        pb.push_note("🎸 OVČANSKE PAROBCI", text)
         return True
-    except:
-        return False
-
-if not os.path.exists(DB_FILE):
-    with open(DB_FILE, "w") as f:
-        json.dump([], f)
+    except: return False
 
 def nacti_data():
+    if not os.path.exists(DB_FILE): return []
     try:
-        with open(DB_FILE, "r") as f:
-            return json.load(f)
-    except:
-        return []
+        with open(DB_FILE, "r") as f: return json.load(f)
+    except: return []
 
 def uloz_data(data):
-    with open(DB_FILE, "w") as f:
-        json.dump(data, f, indent=4)
+    with open(DB_FILE, "w") as f: json.dump(data, f, indent=4)
 
-# --- UI NASTAVENIA ---
-st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎸")
+# --- SPRIESTORNENIE ---
+st.set_page_config(page_title="Ovčanske Parobci | Rezervácie", page_icon="🎸", layout="centered")
+apply_style()
 
-# Menu vľavo
-st.sidebar.title("MENU")
-menu_moznost = st.sidebar.radio("Vyberte si:", ["🎸 Rezervácia pre verejnosť", "🔐 Správa kapely"])
+# --- SIDEBAR ---
+st.sidebar.image(HEADER_IMAGE, use_container_width=True)
+st.sidebar.markdown("<h2 style='text-align: center;'>MENU</h2>", unsafe_allow_html=True)
+menu_moznost = st.sidebar.radio("", ["🎸 Chceme vás na akciu", "🔐 Vstup pre kapelu"])
 
-# --- 1. VEREJNÁ ČASŤ ---
-if menu_moznost == "🎸 Rezervácia pre verejnosť":
-    st.title("🎸 Rezervujte si Ovčanských Parobkov!")
-    st.write("Vyplňte formulár a my sa vám ozveme, či máme voľno.")
+# --- 1. VEREJNÁ ČASŤ (DIZAJNOVÁ) ---
+if menu_moznost == "🎸 Chceme vás na akciu":
+    # Veľký nadpis s fotkou
+    st.image(HEADER_IMAGE, caption="Ovčanske Parobci v akcii", use_container_width=True)
+    st.title("🎻 Ovčanske Parobci")
+    st.markdown("### Rezervujte si najlepšiu zábavu pre vašu oslavu!")
+    st.write("Sme pripravení rozprúdiť krv v žilách na vašej svadbe, 50-tke či firemnej párty.")
     
     st.divider()
     
+    col1, col2 = st.columns([1, 1])
+    with col1:
+        st.info("✅ Profesionálny prístup")
+        st.info("✅ Široký repertoár")
+    with col2:
+        st.info("✅ Vlastná aparatúra")
+        st.info("✅ Zábava do rána")
+
+    st.markdown("---")
+    st.subheader("📩 Napíšte nám termín")
+    
     with st.form("form_rezervacia"):
-        datum = st.date_input("Dátum akcie", min_value=datetime.now())
-        cas = st.time_input("Približný čas (odkedy hráme)")
-        meno = st.text_input("Vaše meno a kontakt (mobil/email)")
-        poznamka = st.text_area("O akú akciu ide? (napr. Svadba, 50-tka, Krstiny...)")
+        d = st.date_input("Kedy sa bude žúrovať?", min_value=datetime.now())
+        c = st.time_input("Odkedy máme začať?")
+        m = st.text_input("Vaše meno a telefón")
+        p = st.text_area("Povedzte nám o akcii viac (miesto, počet ľudí...)")
         
-        odoslat = st.form_submit_button("ODOSLAŤ DOPYT")
+        submit = st.form_submit_button("ODOSLAŤ REZERVÁCIU")
         
-        if odoslat:
+        if submit:
             data = nacti_data()
-            obsadene = [a['datum'] for a in data]
-            
-            if str(datum) in obsadene:
-                st.error(f"Prepáčte, termín {datum} už máme obsadený.")
-            elif not meno:
-                st.warning("Zadajte prosím svoje meno a kontakt.")
+            if any(a['datum'] == str(d) for a in data):
+                st.error(f"Tento termín ({d}) je už bohužiaľ obsadený. Skúste iný!")
+            elif not m:
+                st.warning("Napíšte nám aspoň vaše meno a číslo.")
             else:
-                msg = f"NOVÁ REZERVÁCIA!\nKedy: {datum} o {cas}\nKto: {meno}\nČo: {poznamka}"
+                msg = f"Nová rezervácia!\nDátum: {d}\nČas: {c}\nKontakt: {m}\nInfo: {p}"
                 if posli_upozornenie(msg):
-                    st.success("Dopyt bol odoslaný! Ozveme sa vám. ✅")
-                else:
-                    st.error("Chyba pri odosielaní správy kapele.")
+                    st.balloons()
+                    st.success("Hotovo! Správa nám práve prišla do mobilu. Ozveme sa vám! ✅")
 
-# --- 2. ADMIN ČASŤ (LOGIN) ---
+# --- 2. ADMIN ČASŤ ---
 else:
-    st.title("🔐 Sekcia pre členov")
-
-    # Kontrola prihlásenia v pamäti prehliadača
-    if 'auth' not in st.session_state:
-        st.session_state['auth'] = False
+    st.title("🔐 Administrácia")
+    
+    if 'auth' not in st.session_state: st.session_state['auth'] = False
 
     if not st.session_state['auth']:
-        # TU SÚ TIE POLÍČKA, KTORÉ HĽADÁŠ
-        st.info("Pre vstup do správy sa musíte prihlásiť.")
-        vstup_meno = st.text_input("Užívateľské meno")
-        vstup_heslo = st.text_input("Heslo", type="password")
-        
-        if st.button("Prihlásiť sa"):
-            if vstup_meno == LOGIN_MENO and vstup_heslo == LOGIN_HESLO:
+        v_meno = st.text_input("Užívateľ")
+        v_heslo = st.text_input("Heslo", type="password")
+        if st.button("VSTÚPIŤ"):
+            if v_meno == LOGIN_MENO and v_heslo == LOGIN_HESLO:
                 st.session_state['auth'] = True
                 st.rerun()
-            else:
-                st.error("Nesprávne meno alebo heslo!")
+            else: st.error("Prístup zamietnutý!")
     else:
-        # TOTO UVIDÍŠ AŽ KEĎ SA PRIHLÁSIŠ
-        st.sidebar.success("Ste prihlásený")
-        if st.sidebar.button("Odhlásiť sa"):
+        st.success("Vitajte, Parobci!")
+        if st.sidebar.button("ODHLÁSIŤ SA"):
             st.session_state['auth'] = False
             st.rerun()
 
-        st.subheader("Administrácia akcií")
+        t1, t2 = st.tabs(["➕ Pridať akciu", "📅 Plán akcií"])
         
-        tab1, tab2 = st.tabs(["Pridať novú akciu", "Zoznam všetkých akcií"])
-        
-        with tab1:
-            with st.form("admin_add"):
+        with t1:
+            with st.form("add"):
                 d = st.date_input("Dátum")
                 c = st.time_input("Čas")
-                p = st.text_input("Miesto / Názov")
-                submit = st.form_submit_button("ULOŽIŤ AKCIU")
-                
-                if submit:
+                p = st.text_input("Názov/Miesto")
+                if st.form_submit_button("ULOŽIŤ"):
                     data = nacti_data()
-                    nova = {"datum": str(d), "cas": str(c), "poznamka": p}
-                    data.append(nova)
+                    data.append({"datum": str(d), "cas": str(c), "poznamka": p})
                     uloz_data(data)
-                    st.success("Akcia uložená do kalendára!")
+                    st.success("Uložené!")
 
-        with tab2:
+        with t2:
             data = nacti_data()
-            if data:
-                for idx, akcia in enumerate(data):
-                    st.write(f"📅 **{akcia['datum']}** - {akcia['poznamka']} ({akcia['cas']})")
-                
-                st.divider()
-                if st.button("🗑️ VYMAZAŤ VŠETKO"):
-                    uloz_data([])
-                    st.rerun()
-            else:
-                st.write("Zatiaľ nemáte žiadne akcie.")
+            for a in data:
+                st.write(f"🟡 **{a['datum']}** - {a['poznamka']}")
+            if st.button("VYMAZAŤ VŠETKO"):
+                uloz_data([])
+                st.rerun()
