@@ -2,7 +2,7 @@ import streamlit as st
 import pandas as pd
 import json
 import os
-from datetime import datetime, date
+from datetime import datetime
 from pushbullet import Pushbullet
 
 # --- KONFIGURÁCIA ---
@@ -31,16 +31,6 @@ def apply_style():
         .stForm {{ background-color: rgba(0, 0, 0, 0.8) !important; border: 2px solid #d4af37 !important; border-radius: 20px; padding: 30px; }}
         .stButton>button {{ background-color: #d4af37 !important; color: black !important; border-radius: 12px !important; font-weight: bold !important; width: 100%; transition: 0.3s; }}
         .stButton>button:hover {{ transform: scale(1.02); box-shadow: 0px 0px 20px #d4af37; }}
-        
-        /* Box pre odpočítavanie */
-        .countdown-box {{
-            background: rgba(212, 175, 55, 0.2);
-            border: 1px solid #d4af37;
-            padding: 15px;
-            border-radius: 15px;
-            text-align: center;
-            margin-bottom: 25px;
-        }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -68,29 +58,8 @@ apply_style()
 st.sidebar.markdown("## PAROBCI")
 menu = st.sidebar.radio("NAVIGÁCIA", ["🎸 Rezervácia", "📸 Galéria", "🔐 Administrácia"])
 
-db = nacti_data()
-
-# --- ODPOČÍTAVANIE DO NAJBLIŽŠIEHO HRANIA ---
-def render_countdown():
-    buduce = [a for a in db if (a.get("stav") == "schvalene" or "stav" not in a) and datetime.strptime(a['datum'], '%Y-%m-%d').date() >= date.today()]
-    if buduce:
-        buduce.sort(key=lambda x: x['datum'])
-        najblizsia = buduce[0]
-        d_format = datetime.strptime(najblizsia['datum'], '%Y-%m-%d').date()
-        dni = (d_format - date.today()).days
-        
-        if dni == 0:
-            msg = "DNES HRÁME! 🎻🔥"
-        elif dni == 1:
-            msg = "Zajtra hráme: " + najblizsia['poznamka']
-        else:
-            msg = f"Najbližšie hráme o {dni} dní ({najblizsia['poznamka']})"
-        
-        st.markdown(f'<div class="countdown-box"><h3 style="margin:0; font-size:1.2rem;">{msg}</h3></div>', unsafe_allow_html=True)
-
 # --- 1. REZERVÁCIA ---
 if menu == "🎸 Rezervácia":
-    render_countdown()
     st.title("🎻 Ovčanske Parobci")
     st.markdown("#### Poriadna ľudová muzika na vašu akciu")
     
@@ -103,19 +72,22 @@ if menu == "🎸 Rezervácia":
         detaily = st.text_area("Detaily (miesto, typ akcie...)")
         
         if st.form_submit_button("ODOSLAŤ REZERVÁCIU"):
+            db = nacti_data()
             nova = {"id": str(datetime.now().timestamp()), "datum": str(datum), "cas": str(cas), "poznamka": f"{meno} | {detaily}", "stav": "cakajuce"}
-            db.append(nova); uloz_data(db)
+            db.append(nova)
+            uloz_data(db)
             posli_upozornenie(f"Dopyt: {datum} od {meno}")
-            st.balloons(); st.success("Odoslané! Ozveme sa vám. ✅")
+            st.balloons()
+            st.success("Dopyt odoslaný! Ozveme sa vám. ✅")
 
 # --- 2. GALÉRIA ---
 elif menu == "📸 Galéria":
     st.title("📸 Naša Zábava")
-    st.write("Pozrite si, ako to vyzerá, keď to Ovčanske Parobci rozbalia!")
+    st.write("Tu môžete vidieť, ako to žije na akciách s Ovčanskými Parobkami!")
     
-    # Tu môžeš pridať linky na ďalšie fotky z akcií
+    # Linky na fotky (tu si môžeš doplniť ďalšie linky z PostImages)
     fotky = [
-        KAPELA_FOTO_URL, # Tu daj iné linky ak máš
+        KAPELA_FOTO_URL,
         "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg" 
     ]
     
@@ -128,50 +100,70 @@ elif menu == "📸 Galéria":
 else:
     st.title("🔐 Administrácia")
     if 'auth' not in st.session_state: st.session_state['auth'] = False
+    
     if not st.session_state['auth']:
         with st.form("login"):
-            u = st.text_input("Užívateľ"); h = st.text_input("Heslo", type="password")
+            u = st.text_input("Užívateľ")
+            h = st.text_input("Heslo", type="password")
             if st.form_submit_button("Vstúpiť"):
-                if u == LOGIN_MENO and h == LOGIN_HESLO: st.session_state['auth'] = True; st.rerun()
+                if u == LOGIN_MENO and h == LOGIN_HESLO:
+                    st.session_state['auth'] = True
+                    st.rerun()
                 else: st.error("Nesprávne údaje!")
     else:
-        if st.sidebar.button("Odhlásiť sa"): st.session_state['auth'] = False; st.rerun()
-        t1, t2, t3 = st.tabs(["📩 Nové dopyty", "📅 Kalendár", "➕ Pridať"])
-        
-        with t1:
-            cakajuce = [a for a in db if a.get("stav") == "cakajuce"]
-            for i, a in enumerate(cakajuce):
-                with st.expander(f"{a['datum']} - {a['poznamka'][:20]}..."):
-                    st.write(f"Info: {a['poznamka']}")
-                    c1, c2 = st.columns(2)
-                    if c1.button("✅ Schváliť", key=f"ok{i}"):
-                        for item in db:
-                            if item['id'] == a['id']: item['stav'] = "schvalene"
-                        uloz_data(db); st.rerun()
-                    if c2.button("🗑️ Zmazať", key=f"no{i}"):
-                        db = [item for item in db if item['id'] != a['id']]
-                        uloz_data(db); st.rerun()
+        if st.sidebar.button("Odhlásiť sa"):
+            st.session_state['auth'] = False
+            st.rerun()
 
-        with t2:
+        tab1, tab2, tab3 = st.tabs(["📩 Nové dopyty", "📅 Kalendár", "➕ Pridať"])
+        db = nacti_data()
+
+        with tab1:
+            cakajuce = [a for a in db if a.get("stav") == "cakajuce"]
+            cakajuce.sort(key=lambda x: x['datum'])
+            if not cakajuce:
+                st.write("Žiadne nové dopyty.")
+            else:
+                for i, a in enumerate(cakajuce):
+                    with st.expander(f"Dopyt: {a['datum']} - {a['poznamka'][:30]}..."):
+                        st.write(f"**Info:** {a['poznamka']}")
+                        c1, col2 = st.columns(2)
+                        if c1.button("✅ Schváliť", key=f"ok{i}"):
+                            for item in db:
+                                if item['id'] == a['id']: item['stav'] = "schvalene"
+                            uloz_data(db); st.rerun()
+                        if col2.button("🗑️ Zmazať", key=f"no{i}"):
+                            db = [item for item in db if item['id'] != a['id']]
+                            uloz_data(db); st.rerun()
+
+        with tab2:
             schvalene = [a for a in db if a.get("stav") == "schvalene" or "stav" not in a]
             schvalene.sort(key=lambda x: x['datum'])
-            for i, a in enumerate(schvalene):
-                with st.expander(f"📅 {a['datum']} - {a['poznamka'][:30]}"):
-                    e_d = st.date_input("Dátum", value=datetime.strptime(a['datum'], '%Y-%m-%d'), key=f"d{i}")
-                    e_n = st.text_area("Poznámka", value=a['poznamka'], key=f"n{i}")
-                    if st.button("Uložiť", key=f"s{i}"):
-                        for item in db:
-                            if item['id'] == a['id']: item['datum'] = str(e_d); item['poznamka'] = e_n
-                        uloz_data(db); st.rerun()
-                    if st.button("Zmazať", key=f"del{i}"):
-                        db = [item for item in db if item['id'] != a['id']]
-                        uloz_data(db); st.rerun()
+            if not schvalene:
+                st.write("Kalendár je prázdny.")
+            else:
+                for i, a in enumerate(schvalene):
+                    with st.expander(f"📅 {a['datum']} - {a['poznamka'][:30]}..."):
+                        e_date = st.date_input("Dátum", value=datetime.strptime(a['datum'], '%Y-%m-%d'), key=f"d_{i}")
+                        e_note = st.text_area("Poznámka", value=a['poznamka'], key=f"n_{i}")
+                        c1, col2 = st.columns(2)
+                        if c1.button("💾 Uložiť", key=f"s_{i}"):
+                            for item in db:
+                                if item['id'] == a['id']:
+                                    item['datum'] = str(e_date)
+                                    item['poznamka'] = e_note
+                                    break
+                            uloz_data(db); st.rerun()
+                        if col2.button("🗑️ Vymazať", key=f"del{i}"):
+                            db = [item for item in db if item['id'] != a['id']]
+                            uloz_data(db); st.rerun()
 
-        with t3:
-            with st.form("add"):
-                d = st.date_input("Dátum"); n = st.text_input("Miesto")
-                if st.form_submit_button("Uložiť"):
-                    db.append({"id": str(datetime.now().timestamp()), "datum": str(d), "cas": "---", "poznamka": n, "stav": "schvalene"})
-                    uloz_data(db); st.success("Pridané!"); st.rerun()
+        with tab3:
+            with st.form("add_manual"):
+                d = st.date_input("Dátum")
+                p = st.text_input("Poznámka")
+                if st.form_submit_button("Uložiť do kalendára"):
+                    db.append({"id": str(datetime.now().timestamp()), "datum": str(d), "cas": "---", "poznamka": p, "stav": "schvalene"})
+                    uloz_data(db); st.rerun()
 
 st.markdown(f'<div style="text-align:center; margin-top:50px; color:#ccc;"><b>Podpora:</b> 0944 757 122</div>', unsafe_allow_html=True)
