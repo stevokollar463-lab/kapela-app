@@ -11,7 +11,7 @@ PB_API_KEY = "o.Ir4LWAKm78pwEhpKkAf6WZY9uZPNCkSm"
 LOGIN_MENO = "ovcanskeparobci"
 LOGIN_HESLO = "OvcanskeParobci123"
 
-# Odkaz na fotku (odporúčam nahradiť vašou reálnou fotkou)
+# Odkaz na fotku
 HEADER_IMAGE = "https://images.unsplash.com/photo-1514525253361-bee8718a74a2?q=80&w=1000&auto=format&fit=crop"
 
 # --- BRUTÁLNY DIZAJN (CSS) ---
@@ -44,6 +44,11 @@ def apply_style():
         .stButton>button:hover {{
             transform: scale(1.02);
             box-shadow: 0px 0px 15px #d4af37;
+        }}
+        /* Štýl pre červené tlačidlo Vymazať */
+        .stButton>button[data-testid="baseButton-secondary"] {{
+            background-color: #ff4b4b !important;
+            color: white !important;
         }}
         .footer-text {{
             text-align: center;
@@ -93,7 +98,7 @@ menu_moznost = st.sidebar.radio("", ["🎸 Chceme vás na akciu", "🔐 Vstup pr
 # --- 1. VEREJNÁ ČASŤ ---
 if menu_moznost == "🎸 Chceme vás na akciu":
     st.image(HEADER_IMAGE, caption="Ovčanske Parobci", use_container_width=True)
-    st.title("🎻 Ovčanske Parobci")
+    st.title("琴 Ovčanske Parobci")
     st.markdown("### Rezervujte si najlepšiu zábavu!")
     
     st.divider()
@@ -125,7 +130,6 @@ else:
     if 'auth' not in st.session_state: st.session_state['auth'] = False
 
     if not st.session_state['auth']:
-        st.info("Zadajte prístupové údaje pre správu kalendára.")
         v_meno = st.text_input("Užívateľ")
         v_heslo = st.text_input("Heslo", type="password")
         if st.button("PRIHLÁSIŤ SA"):
@@ -143,12 +147,18 @@ else:
         
         with t1:
             with st.form("add"):
-                d = st.date_input("Dátum")
-                c = st.time_input("Čas")
-                p = st.text_input("Názov/Miesto")
+                d_input = st.date_input("Dátum")
+                c_input = st.time_input("Čas")
+                p_input = st.text_input("Názov/Miesto")
                 if st.form_submit_button("ULOŽIŤ DO KALENDÁRA"):
                     data = nacti_data()
-                    data.append({"datum": str(d), "cas": str(c), "poznamka": p})
+                    # Pridáme unikátne ID pre každú akciu, aby sme ju vedeli mazať
+                    data.append({
+                        "id": str(datetime.now().timestamp()),
+                        "datum": str(d_input), 
+                        "cas": str(c_input), 
+                        "poznamka": p_input
+                    })
                     uloz_data(data)
                     st.success("Akcia bola úspešne uložená!")
 
@@ -156,15 +166,22 @@ else:
             data = nacti_data()
             if data:
                 data.sort(key=lambda x: x['datum'])
-                for a in data:
-                    st.write(f"🟡 **{a['datum']}** - {a['poznamka']} ({a['cas']})")
+                for idx, a in enumerate(data):
+                    col1, col2 = st.columns([4, 1])
+                    with col1:
+                        st.write(f"🟡 **{a['datum']}** - {a['poznamka']} ({a['cas']})")
+                    with col2:
+                        # Tlačidlo na vymazanie konkrétnej akcie
+                        if st.button("Vymazať", key=f"del_{idx}"):
+                            data.pop(idx)
+                            uloz_data(data)
+                            st.rerun()
                 
                 st.divider()
-                if st.button("🗑️ VYMAZAŤ CELÝ KALENDÁR"):
+                if st.button("🗑️ VYMAZAŤ ÚPLNE VŠETKO"):
                     uloz_data([])
                     st.rerun()
             else:
                 st.write("Kalendár je prázdny.")
 
-# Zavolanie päty s tvojimi údajmi
 footer()
