@@ -36,11 +36,20 @@ def apply_style():
             border-radius: 15px;
             text-align: center;
             margin: 10px 0;
-            text-shadow: 2px 2px 4px #000;
         }}
 
         .stForm {{ background-color: rgba(0, 0, 0, 0.8) !important; border: 2px solid #d4af37 !important; border-radius: 20px; padding: 30px; }}
         .stButton>button {{ background-color: #d4af37 !important; color: black !important; border-radius: 12px !important; font-weight: bold !important; width: 100%; transition: 0.3s; }}
+        
+        /* Štýl pre zobrazenie detailov v admini */
+        .admin-detail-box {{
+            background-color: rgba(0, 100, 255, 0.15);
+            border-left: 5px solid #0064ff;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-size: 0.95rem;
+        }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -71,18 +80,7 @@ menu = st.sidebar.radio("NAVIGÁCIA", ["🎸 Rezervácia", "📸 Galéria", "�
 # --- 1. REZERVÁCIA ---
 if menu == "🎸 Rezervácia":
     st.title("🎻 Ovčanske Parobci")
-    
-    st.markdown("""
-        <div class="info-box">
-            🪗 <b>Akordeón</b> &nbsp; 🪗 <b>Akordeón</b> &nbsp; 🎻 <b>Husle</b> &nbsp; 🥁 <b>Bubon</b> &nbsp; 🎷 <b>Saxofón</b>
-        </div>
-    """, unsafe_allow_html=True)
-
-    st.markdown("""
-        <div class="info-box" style="border-color: #eee; background: rgba(255,255,255,0.05);">
-            💰 <b>Cenová ponuka:</b> Cenu stanovujeme individuálne podľa miesta a dĺžky hrania.
-        </div>
-    """, unsafe_allow_html=True)
+    st.markdown('<div class="info-box">🪗 Akordeón | 🎻 Husle | 🥁 Bubon | 🎷 Saxofón</div>', unsafe_allow_html=True)
     
     with st.form("main_booking"):
         st.subheader("📩 Rezervačný dopyt")
@@ -90,52 +88,33 @@ if menu == "🎸 Rezervácia":
         with col1: datum = st.date_input("Dátum akcie", min_value=datetime.now())
         with col2: cas = st.time_input("Čas začiatku")
         
-        meno_zakaznika = st.text_input("Vaše meno a priezvisko")
-        tel_zakaznika = st.text_input("Telefónne číslo")
-        email_zakaznika = st.text_input("E-mailová adresa")
-        detaily = st.text_area("Detaily (miesto konania, typ akcie...)")
+        meno = st.text_input("Meno a priezvisko")
+        tel = st.text_input("Telefónne číslo")
+        email = st.text_input("E-mail")
+        mesto_detaily = st.text_area("Miesto konania a iné detaily")
         
         if st.form_submit_button("ODOSLAŤ REZERVÁCIU"):
             db = nacti_data()
-            # KONTROLA DUPLICITY TERMÍNU
-            termin_obsadeny = any(a['datum'] == str(datum) for a in db)
-            
-            if termin_obsadeny:
-                st.error("Je nám ľúto, ale tento termín je už v našom kalendári obsadený.")
-            elif not meno_zakaznika or not tel_zakaznika or not email_zakaznika:
-                st.warning("Vyplňte prosím meno, telefón aj e-mail.")
+            if any(a['datum'] == str(datum) for a in db):
+                st.error("Termín je už obsadený.")
+            elif not meno or not tel:
+                st.warning("Vyplňte meno a telefón.")
             else:
                 nova = {
                     "id": str(datetime.now().timestamp()), 
-                    "datum": str(datum), 
-                    "cas": str(cas),
-                    "meno": meno_zakaznika,
-                    "tel": tel_zakaznika,
-                    "email": email_zakaznika,
-                    "detaily": detaily,
-                    "stav": "cakajuce"
+                    "datum": str(datum), "cas": str(cas),
+                    "meno": meno, "tel": tel, "email": email, 
+                    "detaily": mesto_detaily, "stav": "cakajuce"
                 }
                 db.append(nova); uloz_data(db)
-                
-                posli_upozornenie(f"Dopyt: {datum}\nOd: {meno_zakaznika}\nTel: {tel_zakaznika}")
-                
-                st.balloons()
-                st.success(f"Dopyt odoslaný! Ozveme sa vám na číslo {tel_zakaznika}.")
-                
-                mailto_link = f"mailto:kollarstevo55@gmail.com?subject=Rezervacia&body=Posielam potvrdenie k akcii dňa {datum}."
-                st.markdown(f'<div style="text-align:center;"><a href="{mailto_link}" style="background-color:#d4af37; color:black; padding:10px 20px; text-decoration:none; border-radius:10px; font-weight:bold;">📧 POTVRDIŤ E-MAILOM</a></div>', unsafe_allow_html=True)
+                posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nMiesto: {mesto_detaily}")
+                st.balloons(); st.success("Odoslané! Ozveme sa vám. ✅")
 
 # --- 2. GALÉRIA ---
 elif menu == "📸 Galéria":
-    st.title("📸 Naša Zábava")
-    fotky = [
-        "https://i.postimg.cc/vZKfzcN0/received-1165768235166057.jpg",
-        "https://i.postimg.cc/6pPn0ymH/received-640306331056375.jpg",
-        "https://i.postimg.cc/cLzwmrbT/received-796698713423840.jpg",
-        "https://i.postimg.cc/RZYKRND1/received-936809825229820.jpg"
-    ]
-    for foto in fotky:
-        st.image(foto, use_container_width=True)
+    st.title("📸 Galéria")
+    fotky = ["https://i.postimg.cc/vZKfzcN0/received-1165768235166057.jpg", "https://i.postimg.cc/6pPn0ymH/received-640306331056375.jpg", "https://i.postimg.cc/cLzwmrbT/received-796698713423840.jpg", "https://i.postimg.cc/RZYKRND1/received-936809825229820.jpg"]
+    for f in fotky: st.image(f, use_container_width=True)
 
 # --- 3. ADMIN ---
 else:
@@ -143,7 +122,7 @@ else:
     if 'auth' not in st.session_state: st.session_state['auth'] = False
     if not st.session_state['auth']:
         with st.form("login"):
-            u = st.text_input("Užívateľ"); h = st.text_input("Heslo", type="password")
+            u = st.text_input("Meno"); h = st.text_input("Heslo", type="password")
             if st.form_submit_button("Vstúpiť"):
                 if u == LOGIN_MENO and h == LOGIN_HESLO: st.session_state['auth'] = True; st.rerun()
                 else: st.error("Chyba!")
@@ -154,18 +133,22 @@ else:
         
         with t1:
             cakajuce = [a for a in db if a.get("stav") == "cakajuce"]
-            cakajuce.sort(key=lambda x: x['datum'])
             for i, a in enumerate(cakajuce):
-                with st.expander(f"{a['datum']} - {a.get('meno', 'Neznámy')}"):
-                    st.write(f"**Meno:** {a.get('meno')}")
-                    st.write(f"**Tel:** {a.get('tel')}")
-                    st.write(f"**Detaily:** {a.get('detaily')}")
-                    c1, col2 = st.columns(2)
+                # OŠETRENIE STARÝCH DÁT: Ak nemá pole 'detaily', skús 'poznamka'
+                info_mesto = a.get('detaily', a.get('poznamka', 'Neuvedené'))
+                with st.expander(f"DOPYT: {a['datum']} - {a.get('meno', 'Neznámy')}"):
+                    st.write(f"📞 **Kontakt:** {a.get('tel', '---')} | 📧 {a.get('email', '---')}")
+                    st.write(f"🕒 **Čas:** {a.get('cas', '---')}")
+                    
+                    # TOTO JE TEN BOX S DETAILAMI
+                    st.markdown(f"""<div class="admin-detail-box"><b>Miesto a detaily:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
+                    
+                    c1, c2 = st.columns(2)
                     if c1.button("✅ Schváliť", key=f"ok{i}"):
                         for item in db:
                             if item['id'] == a['id']: item['stav'] = "schvalene"
                         uloz_data(db); st.rerun()
-                    if col2.button("🗑️ Zmazať", key=f"no{i}"):
+                    if c2.button("🗑️ Zmazať", key=f"no{i}"):
                         db = [item for item in db if item['id'] != a['id']]
                         uloz_data(db); st.rerun()
         
@@ -173,31 +156,22 @@ else:
             schvalene = [a for a in db if a.get("stav") == "schvalene" or "stav" not in a]
             schvalene.sort(key=lambda x: x['datum'])
             for i, a in enumerate(schvalene):
-                meno_display = a.get('meno', 'Manuálna akcia')
-                with st.expander(f"📅 {a['datum']} - {meno_display}"):
-                    e_date = st.date_input("Dátum", value=datetime.strptime(a['datum'], '%Y-%m-%d'), key=f"d_{i}")
-                    e_meno = st.text_input("Meno", value=a.get('meno', ''), key=f"m_{i}")
-                    e_tel = st.text_input("Tel", value=a.get('tel', ''), key=f"t_{i}")
-                    if st.button("💾 Uložiť zmeny", key=f"s_{i}"):
-                        for item in db:
-                            if item['id'] == a['id']:
-                                item['datum'] = str(e_date); item['meno'] = e_meno; item['tel'] = e_tel
-                        uloz_data(db); st.rerun()
-                    if st.button("🗑️ Vymazať", key=f"del{i}"):
+                info_mesto = a.get('detaily', a.get('poznamka', 'Neuvedené'))
+                with st.expander(f"📅 {a['datum']} - {a.get('meno', 'Akcia')}"):
+                    st.write(f"📞 {a.get('tel', '')} | 🕒 {a.get('cas', '')}")
+                    
+                    # ZOBRAZENIE DETAILOV AJ V KALENDÁRI
+                    st.markdown(f"""<div class="admin-detail-box"><b>Miesto/Poznámka:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
+                    
+                    if st.button("🗑️ Odstrániť", key=f"del{i}"):
                         db = [item for item in db if item['id'] != a['id']]
                         uloz_data(db); st.rerun()
         
         with t3:
-            with st.form("add"):
-                d = st.date_input("Dátum")
-                m = st.text_input("Meno/Názov akcie")
+            with st.form("add_manual"):
+                d = st.date_input("Dátum"); m = st.text_input("Názov"); det = st.text_area("Miesto/Poznámka")
                 if st.form_submit_button("Uložiť"):
-                    db = nacti_data()
-                    # KONTROLA AJ PRI RUČNOM PRIDÁVANÍ
-                    if any(a['datum'] == str(d) for a in db):
-                        st.error("Tento dátum je už obsadený!")
-                    else:
-                        db.append({"id": str(datetime.now().timestamp()), "datum": str(d), "meno": m, "stav": "schvalene"})
-                        uloz_data(db); st.success("Pridané!"); st.rerun()
+                    db.append({"id": str(datetime.now().timestamp()), "datum": str(d), "meno": m, "detaily": det, "stav": "schvalene"})
+                    uloz_data(db); st.success("OK"); st.rerun()
 
 st.markdown(f'<div style="text-align:center; margin-top:50px; color:#ccc;"><b>Podpora:</b> 0944 757 122</div>', unsafe_allow_html=True)
