@@ -10,7 +10,7 @@ PB_API_KEY = "o.Ir4LWAKm78pwEhpKkAf6WZY9uZPNCkSm"
 LOGIN_MENO = "ovcanskeparobci"
 LOGIN_HESLO = "OvcanskeParobci123"
 
-# HLAVNÁ FOTKA POZADIA (Už overená, ostrá)
+# HLAVNÁ FOTKA POZADIA
 KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg" 
 
 # --- DIZAJN ---
@@ -21,13 +21,9 @@ def apply_style():
             background: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), 
                         url("{KAPELA_FOTO_URL}");
             background-size: cover;
-            background-position: left center;
+            background-position: center center;
             background-attachment: fixed;
-            
-            /* TRICK PRE LEPŠIU OSTROSŤ ROZTIAHNUTÝCH FOTIEK */
             image-rendering: -webkit-optimize-contrast;
-            image-rendering: crisp-edges;
-            
             color: #ffffff;
         }}
         [data-testid="stSidebar"] {{ background-color: rgba(20, 20, 20, 0.85) !important; backdrop-filter: blur(12px); border-right: 1px solid #d4af37; }}
@@ -100,10 +96,15 @@ if menu == "🎸 Rezervácia":
         detaily = st.text_area("Detaily (miesto konania, typ akcie...)")
         
         if st.form_submit_button("ODOSLAŤ REZERVÁCIU"):
-            if not meno_zakaznika or not tel_zakaznika or not email_zakaznika:
+            db = nacti_data()
+            # KONTROLA DUPLICITY TERMÍNU
+            termin_obsadeny = any(a['datum'] == str(datum) for a in db)
+            
+            if termin_obsadeny:
+                st.error("Je nám ľúto, ale tento termín je už v našom kalendári obsadený.")
+            elif not meno_zakaznika or not tel_zakaznika or not email_zakaznika:
                 st.warning("Vyplňte prosím meno, telefón aj e-mail.")
             else:
-                db = nacti_data()
                 nova = {
                     "id": str(datetime.now().timestamp()), 
                     "datum": str(datum), 
@@ -121,11 +122,10 @@ if menu == "🎸 Rezervácia":
                 st.balloons()
                 st.success(f"Dopyt odoslaný! Ozveme sa vám na číslo {tel_zakaznika}.")
                 
-                # Mailto odkaz pre zákazníka
                 mailto_link = f"mailto:kollarstevo55@gmail.com?subject=Rezervacia&body=Posielam potvrdenie k akcii dňa {datum}."
                 st.markdown(f'<div style="text-align:center;"><a href="{mailto_link}" style="background-color:#d4af37; color:black; padding:10px 20px; text-decoration:none; border-radius:10px; font-weight:bold;">📧 POTVRDIŤ E-MAILOM</a></div>', unsafe_allow_html=True)
 
-# --- 2. GALÉRIA (PRIDANÝ FILTER OSTROSTI) ---
+# --- 2. GALÉRIA ---
 elif menu == "📸 Galéria":
     st.title("📸 Naša Zábava")
     fotky = [
@@ -134,14 +134,11 @@ elif menu == "📸 Galéria":
         "https://i.postimg.cc/cLzwmrbT/received-796698713423840.jpg",
         "https://i.postimg.cc/RZYKRND1/received-936809825229820.jpg"
     ]
-    
-    # Zobrazenie v plnej šírke s vynútenou ostrosťou
     for foto in fotky:
-        st.markdown(f'<img src="{foto}" style="width:100%; margin-bottom:10px; image-rendering:crisp-edges;">', unsafe_allow_html=True)
+        st.image(foto, use_container_width=True)
 
 # --- 3. ADMIN ---
 else:
-    # (Zostáva nezmenené - správa dopytov)
     st.title("🔐 Administrácia")
     if 'auth' not in st.session_state: st.session_state['auth'] = False
     if not st.session_state['auth']:
@@ -151,17 +148,18 @@ else:
                 if u == LOGIN_MENO and h == LOGIN_HESLO: st.session_state['auth'] = True; st.rerun()
                 else: st.error("Chyba!")
     else:
-        # Administračné zobrazenie zostáva nezmenené
         if st.sidebar.button("Odhlásiť sa"): st.session_state['auth'] = False; st.rerun()
         t1, t2, t3 = st.tabs(["📩 Nové dopyty", "📅 Kalendár", "➕ Pridať"])
         db = nacti_data()
         
         with t1:
             cakajuce = [a for a in db if a.get("stav") == "cakajuce"]
+            cakajuce.sort(key=lambda x: x['datum'])
             for i, a in enumerate(cakajuce):
                 with st.expander(f"{a['datum']} - {a.get('meno', 'Neznámy')}"):
                     st.write(f"**Meno:** {a.get('meno')}")
                     st.write(f"**Tel:** {a.get('tel')}")
+                    st.write(f"**Detaily:** {a.get('detaily')}")
                     c1, col2 = st.columns(2)
                     if c1.button("✅ Schváliť", key=f"ok{i}"):
                         for item in db:
@@ -170,6 +168,36 @@ else:
                     if col2.button("🗑️ Zmazať", key=f"no{i}"):
                         db = [item for item in db if item['id'] != a['id']]
                         uloz_data(db); st.rerun()
-        # ... (Zvyšok admin tabov zostáva nezmenený)
+        
+        with t2:
+            schvalene = [a for a in db if a.get("stav") == "schvalene" or "stav" not in a]
+            schvalene.sort(key=lambda x: x['datum'])
+            for i, a in enumerate(schvalene):
+                meno_display = a.get('meno', 'Manuálna akcia')
+                with st.expander(f"📅 {a['datum']} - {meno_display}"):
+                    e_date = st.date_input("Dátum", value=datetime.strptime(a['datum'], '%Y-%m-%d'), key=f"d_{i}")
+                    e_meno = st.text_input("Meno", value=a.get('meno', ''), key=f"m_{i}")
+                    e_tel = st.text_input("Tel", value=a.get('tel', ''), key=f"t_{i}")
+                    if st.button("💾 Uložiť zmeny", key=f"s_{i}"):
+                        for item in db:
+                            if item['id'] == a['id']:
+                                item['datum'] = str(e_date); item['meno'] = e_meno; item['tel'] = e_tel
+                        uloz_data(db); st.rerun()
+                    if st.button("🗑️ Vymazať", key=f"del{i}"):
+                        db = [item for item in db if item['id'] != a['id']]
+                        uloz_data(db); st.rerun()
+        
+        with t3:
+            with st.form("add"):
+                d = st.date_input("Dátum")
+                m = st.text_input("Meno/Názov akcie")
+                if st.form_submit_button("Uložiť"):
+                    db = nacti_data()
+                    # KONTROLA AJ PRI RUČNOM PRIDÁVANÍ
+                    if any(a['datum'] == str(d) for a in db):
+                        st.error("Tento dátum je už obsadený!")
+                    else:
+                        db.append({"id": str(datetime.now().timestamp()), "datum": str(d), "meno": m, "stav": "schvalene"})
+                        uloz_data(db); st.success("Pridané!"); st.rerun()
 
 st.markdown(f'<div style="text-align:center; margin-top:50px; color:#ccc;"><b>Podpora:</b> 0944 757 122</div>', unsafe_allow_html=True)
