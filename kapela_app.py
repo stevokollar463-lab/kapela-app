@@ -11,19 +11,20 @@ PB_API_KEY = "o.Ir4LWAKm78pwEhpKkAf6WZY9uZPNCkSm"
 LOGIN_MENO = "ovcanskeparobci"
 LOGIN_HESLO = "OvcanskeParobci123"
 
-# NOVÝ KVALITNÝ LINK Z POSTIMAGES
+# Kvalitný link z PostImages
 KAPELA_FOTO_URL = "https://i.postimg.cc/k4GMHzmG/1000027016.jpg" 
 
 # --- DIZAJN (CSS) ---
 def apply_style():
     st.markdown(f"""
         <style>
-        /* Celoobrazovkové pozadie v top kvalite */
+        /* Celoobrazovkové pozadie - upravené centrovanie! */
         .stApp {{
             background: linear-gradient(rgba(0, 0, 0, 0.65), rgba(0, 0, 0, 0.65)), 
                         url("{KAPELA_FOTO_URL}");
             background-size: cover;
-            background-position: top center;
+            /* ZMENA: Pritlačí fotku k ľavému kraju, aby bolo vidno ľavého harmonikára */
+            background-position: top left; 
             background-attachment: fixed;
             color: #ffffff;
         }}
@@ -143,7 +144,7 @@ if menu == "🎸 Rezervácia":
                 msg = f"DOPYT Z WEBU!\nKedy: {datum} o {cas}\nKontakt: {meno}\nInfo: {detaily}"
                 if posli_upozornenie(msg):
                     st.balloons()
-                    st.success("Vaša správa pípala kapele v mobile! Čoskoro sa vám ozveme. ✅")
+                    st.success("Vaša požiadavka bola úspešne odoslaná! Ozveme sa vám. ✅")
 
 else:
     st.title("🔐 Správa akcií")
@@ -176,7 +177,7 @@ else:
                     uloz_data(db)
                     st.success("Zapísané do kalendára!")
 
-        with tab2:
+        with t2:
             db = nacti_data()
             if db:
                 db.sort(key=lambda x: x['datum'])
