@@ -11,63 +11,65 @@ PB_API_KEY = "o.Ir4LWAKm78pwEhpKkAf6WZY9uZPNCkSm"
 LOGIN_MENO = "ovcanskeparobci"
 LOGIN_HESLO = "OvcanskeParobci123"
 
-# Priamy link na vašu fotku z ImgBB
+# Priamy link na fotku (použijeme ten, čo si poslal, ale cez pozadie)
 KAPELA_FOTO_URL = "https://i.ibb.co/KzBTbwLR/image-2ec9e6.jpg" 
 
-# --- BRUTÁLNY DIZAJN (CSS) ---
+# --- BRUTÁLNY DIZAJN (CSS NA POZADIE) ---
 def apply_style():
     st.markdown(f"""
         <style>
-        /* Hlavné pozadie a písmo */
-        .stApp {{ background-color: #0e1117; color: #ffffff; }}
-        [data-testid="stSidebar"] {{ background-color: #161b22; border-right: 2px solid #d4af37; }}
+        /* Nastavenie celoobrazovkového pozadia */
+        .stApp {{
+            background: linear-gradient(rgba(0, 0, 0, 0.7), rgba(0, 0, 0, 0.7)), 
+                        url("{KAPELA_FOTO_URL}");
+            background-size: cover;
+            background-position: center;
+            background-attachment: fixed;
+            color: #ffffff;
+        }}
         
-        /* Zlaté nadpisy */
+        /* Transparentný bočný panel */
+        [data-testid="stSidebar"] {{
+            background-color: rgba(22, 27, 34, 0.8) !important;
+            backdrop-filter: blur(10px);
+            border-right: 1px solid #d4af37;
+        }}
+        
+        /* Nadpisy so zlatým nádychom */
         h1, h2, h3 {{ 
             color: #d4af37 !important; 
             font-family: 'Playfair Display', serif; 
-            text-transform: uppercase; 
-            letter-spacing: 2px; 
-            text-align: center;
+            text-shadow: 2px 2px 4px #000000;
         }}
-        
-        /* Štýlové tlačidlá */
+
+        /* Biele karty pre formuláre aby boli čitateľné */
+        .stForm {{
+            background-color: rgba(0, 0, 0, 0.6) !important;
+            border: 1px solid #d4af37 !important;
+            border-radius: 15px;
+            padding: 30px;
+            backdrop-filter: blur(5px);
+        }}
+
+        /* Tlačidlá */
         .stButton>button {{ 
             background-color: #d4af37 !important; 
             color: black !important; 
-            border-radius: 20px !important; 
-            border: none !important; 
-            font-weight: bold !important; 
-            transition: 0.3s; 
-            width: 100%;
-        }}
-        .stButton>button:hover {{ 
-            transform: scale(1.02); 
-            box-shadow: 0px 0px 15px #d4af37; 
+            border-radius: 10px !important; 
+            font-weight: bold !important;
+            height: 3em;
+            border: none !important;
         }}
         
-        /* Päta stránky */
+        /* Päta */
         .footer-text {{ 
             text-align: center; 
-            color: #808080; 
-            font-size: 0.85rem; 
+            color: #ccc; 
+            font-size: 0.9rem; 
             margin-top: 50px; 
             padding: 20px; 
-            border-top: 1px solid #333; 
-        }}
-        
-        /* Obrázky so zlatým rámom */
-        .stImage>img {{ 
-            border-radius: 15px; 
-            border: 3px solid #d4af37; 
-            box-shadow: 0px 10px 30px rgba(0,0,0,0.5);
-        }}
-        
-        /* Úprava formulárov */
-        .stForm {{
-            border: 1px solid #333 !important;
-            border-radius: 15px;
-            padding: 20px;
+            background: rgba(0,0,0,0.5);
+            border-radius: 10px;
         }}
         </style>
     """, unsafe_allow_html=True)
@@ -92,90 +94,81 @@ def posli_upozornenie(text):
 def footer():
     st.markdown(f"""
         <div class="footer-text">
-            V prípade technických problémov kontaktujte správcu:<br>
-            📞 <b>0944 757 122</b> | ✉️ <b>kollarstevo55@gmail.com</b>
+            <b>Technická podpora:</b> 📞 0944 757 122 | ✉️ kollarstevo55@gmail.com
         </div>
     """, unsafe_allow_html=True)
 
 # --- KONFIGURÁCIA STRÁNKY ---
-st.set_page_config(page_title="Ovčanske Parobci | Rezervácie", page_icon="🎻", layout="centered")
+st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎻", layout="centered")
 apply_style()
 
-# --- SIDEBAR (Bočný panel) ---
-st.sidebar.image(KAPELA_FOTO_URL, use_container_width=True)
-st.sidebar.markdown("<h3 style='text-align: center;'>MENU</h3>", unsafe_allow_html=True)
-menu_moznost = st.sidebar.radio("", ["🎸 Chceme vás na akciu", "🔐 Vstup pre kapelu"])
+# --- SIDEBAR ---
+st.sidebar.markdown("<h2 style='text-align: center;'>OVČANSKE PAROBCI</h2>", unsafe_allow_html=True)
+menu_moznost = st.sidebar.radio("NAVIGÁCIA", ["🎸 Rezervácia vystúpenia", "🔐 Administrácia"])
 
-# --- 1. VEREJNÁ ČASŤ (Web pre ľudí) ---
-if menu_moznost == "🎸 Chceme vás na akciu":
-    st.image(KAPELA_FOTO_URL, use_container_width=True)
+# --- 1. VEREJNÁ ČASŤ ---
+if menu_moznost == "🎸 Rezervácia vystúpenia":
     st.title("🎻 Ovčanske Parobci")
-    st.markdown("<h3 style='text-align: center;'>Zaručená ľudová zábava pre každého</h3>", unsafe_allow_html=True)
+    st.markdown("<h4 style='text-align: center;'>Tradičná hudba pre vašu nezabudnuteľnú udalosť</h4>", unsafe_allow_html=True)
     
-    st.write("Máte pred sebou dôležitú životnú udalosť? Svadbu, jubileum alebo oslavu? Ovčanske Parobci sa postarajú o to, aby sa o vašej akcii hovorilo ešte dlho!")
-    
-    st.divider()
-    
-    st.subheader("📩 Zistiť dostupnosť termínu")
+    st.markdown("<br>", unsafe_allow_html=True)
     
     with st.form("form_rezervacia"):
-        d = st.date_input("Kedy sa bude žúrovať?", min_value=datetime.now())
-        c = st.time_input("Približný čas začiatku")
-        m = st.text_input("Vaše meno a telefónne číslo")
-        p = st.text_area("O akú akciu ide? (miesto, typ akcie, počet hostí...)")
+        st.subheader("📩 Rezervačný dopyt")
+        col1, col2 = st.columns(2)
+        with col1:
+            d = st.date_input("Dátum akcie", min_value=datetime.now())
+        with col2:
+            c = st.time_input("Čas začiatku")
         
-        submit = st.form_submit_button("ODOSLAŤ NEZÁVÄZNÝ DOPYT")
+        m = st.text_input("Vaše meno a telefónne číslo")
+        p = st.text_area("Detaily akcie (miesto, typ oslavy...)")
+        
+        submit = st.form_submit_button("ODOSLAŤ REZERVÁCIU")
         
         if submit:
             data = nacti_data()
             if any(a['datum'] == str(d) for a in data):
-                st.error(f"Prepáčte, termín {d} už máme obsadený. Skúste si prosím vybrať iný dátum.")
+                st.error("Tento termín už máme bohužiaľ obsadený.")
             elif not m:
-                st.warning("Prosím, napíšte nám vaše kontaktné údaje.")
+                st.warning("Prosím, uveďte kontakt.")
             else:
-                text_notif = f"NOVÝ DOPYT!\nKedy: {d} o {c}\nKontakt: {m}\nDetaily: {p}"
-                if posli_upozornenie(text_notif):
+                if posli_upozornenie(f"DOPYT!\nDátum: {d}\nKontakt: {m}\nInfo: {p}"):
                     st.balloons()
-                    st.success("Vaša požiadavka bola úspešne odoslaná! Čoskoro sa vám ozveme. ✅")
+                    st.success("Vaša správa bola odoslaná! Ozveme sa vám. ✅")
 
-# --- 2. ADMIN ČASŤ (Správa pre kapelu) ---
+# --- 2. ADMIN ČASŤ ---
 else:
-    st.title("🔐 Sekcia pre členov")
-    
+    st.title("🔐 Správa systému")
     if 'auth' not in st.session_state: st.session_state['auth'] = False
 
     if not st.session_state['auth']:
-        st.info("Pre prístup k správe kalendára sa prihláste.")
-        v_meno = st.text_input("Užívateľ")
-        v_heslo = st.text_input("Heslo", type="password")
-        if st.button("PRIHLÁSIŤ SA"):
-            if v_meno == LOGIN_MENO and v_heslo == LOGIN_HESLO:
-                st.session_state['auth'] = True
-                st.rerun()
-            else: st.error("Nesprávne meno alebo heslo!")
+        with st.form("login"):
+            st.write("Vstup pre kapelu")
+            u = st.text_input("Meno")
+            h = st.text_input("Heslo", type="password")
+            if st.form_submit_button("PRIHLÁSIŤ SA"):
+                if u == LOGIN_MENO and h == LOGIN_HESLO:
+                    st.session_state['auth'] = True
+                    st.rerun()
+                else: st.error("Chyba!")
     else:
-        st.sidebar.success("Ste prihlásený")
         if st.sidebar.button("ODHLÁSIŤ SA"):
             st.session_state['auth'] = False
             st.rerun()
 
-        t1, t2 = st.tabs(["➕ Pridať novú akciu", "📅 Plánované termíny"])
+        t1, t2 = st.tabs(["➕ Pridať termín", "📅 Zoznam akcií"])
         
         with t1:
-            with st.form("add_form"):
-                d_in = st.date_input("Dátum akcie")
+            with st.form("add"):
+                d_in = st.date_input("Dátum")
                 c_in = st.time_input("Čas")
-                p_in = st.text_input("Názov / Miesto konania")
-                if st.form_submit_button("ULOŽIŤ DO KALENDÁRA"):
+                p_in = st.text_input("Miesto/Názov")
+                if st.form_submit_button("ULOŽIŤ"):
                     data = nacti_data()
-                    data.append({
-                        "id": str(datetime.now().timestamp()), 
-                        "datum": str(d_in), 
-                        "cas": str(c_in), 
-                        "poznamka": p_in
-                    })
+                    data.append({"id": str(datetime.now().timestamp()), "datum": str(d_in), "cas": str(c_in), "poznamka": p_in})
                     uloz_data(data)
-                    st.success("Akcia bola úspešne zapísaná!")
+                    st.success("Zapísané!")
 
         with t2:
             data = nacti_data()
@@ -183,30 +176,20 @@ else:
                 data.sort(key=lambda x: x['datum'])
                 for idx, a in enumerate(data):
                     with st.expander(f"📅 {a['datum']} - {a['poznamka']}"):
-                        new_date = st.date_input("Dátum", value=datetime.strptime(a['datum'], '%Y-%m-%d'), key=f"date_{idx}")
-                        new_time = st.text_input("Čas", value=a['cas'], key=f"time_{idx}")
-                        new_note = st.text_input("Miesto/Názov", value=a['poznamka'], key=f"note_{idx}")
+                        # Tu sú tie úpravy
+                        nd = st.date_input("Dátum", value=datetime.strptime(a['datum'], '%Y-%m-%d'), key=f"d{idx}")
+                        nc = st.text_input("Čas", value=a['cas'], key=f"c{idx}")
+                        np = st.text_input("Miesto", value=a['poznamka'], key=f"p{idx}")
                         
-                        col1, col2 = st.columns(2)
-                        with col1:
-                            if st.button("💾 Uložiť zmeny", key=f"save_{idx}"):
-                                data[idx]['datum'] = str(new_date)
-                                data[idx]['cas'] = new_time
-                                data[idx]['poznamka'] = new_note
-                                uloz_data(data)
-                                st.success("Zmenené!")
-                                st.rerun()
-                        with col2:
-                            if st.button("🗑️ Vymazať", key=f"del_{idx}"):
-                                data.pop(idx)
-                                uloz_data(data)
-                                st.rerun()
-                
-                st.divider()
-                if st.button("🗑️ VYMAZAŤ CELÝ KALENDÁR"):
-                    uloz_data([])
-                    st.rerun()
+                        c1, c2 = st.columns(2)
+                        with c1:
+                            if st.button("Uložiť", key=f"s{idx}"):
+                                data[idx] = {"id": a['id'], "datum": str(nd), "cas": nc, "poznamka": np}
+                                uloz_data(data); st.rerun()
+                        with c2:
+                            if st.button("Zmazať", key=f"r{idx}"):
+                                data.pop(idx); uloz_data(data); st.rerun()
             else:
-                st.write("Zatiaľ nemáte žiadne naplánované akcie.")
+                st.write("Prázdno.")
 
 footer()
