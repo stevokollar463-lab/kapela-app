@@ -169,7 +169,7 @@ if menu == "🎸 Rezervácia":
     st.markdown('<div class="info-box">🪗 Akordeón | 🎻 Husle | 🥁 Bubon | 🎷 Saxofón</div>', unsafe_allow_html=True)
     
     # --- INTERAKTÍVNA KALKULAČKA (MIMO FORMULÁRA pre okamžitú odozvu) ---
-    st.markdown("<h4 style='text-align: center; margin-bottom: 5px; margin-top: 20px;'>🧮 Výpočet ceny vystúpenia</h4>", unsafe_allow_html=True)
+    st.markdown("<h4 style='text-align: center; margin-bottom: 5px; margin-top: 20px;'>Výpočet ceny vystúpenia</h4>", unsafe_allow_html=True)
     
     col_hours, col_km = st.columns(2)
     with col_hours:
