@@ -50,6 +50,36 @@ def apply_style():
             border-radius: 5px;
             font-size: 0.95rem;
         }}
+
+        /* --- ANIMÁCIA PRE ŠÍPKU MENU (VĽAVO HORE) --- */
+        div[data-testid="collapsedSidebar"] button,
+        button[data-testid="stSidebarCollapseButton"],
+        button[aria-label="Expand sidebar"] {{
+            background-color: #d4af37 !important;
+            color: #000000 !important;
+            border-radius: 8px !important;
+            animation: bouncePulse 2s infinite !important;
+            box-shadow: 0 0 10px #d4af37 !important;
+            border: 1px solid #ffffff !important;
+            transition: 0.3s;
+        }}
+        
+        div[data-testid="collapsedSidebar"] button svg,
+        button[data-testid="stSidebarCollapseButton"] svg {{
+            color: #000000 !important;
+            fill: #000000 !important;
+        }}
+
+        @keyframes bouncePulse {{
+            0%, 100% {{
+                transform: scale(1) translateX(0);
+                box-shadow: 0 0 8px #d4af37;
+            }}
+            50% {{
+                transform: scale(1.18) translateX(6px);
+                box-shadow: 0 0 18px #d4af37, 0 0 25px #d4af37;
+            }}
+        }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -91,7 +121,7 @@ if menu == "🎸 Rezervácia":
         meno = st.text_input("Meno a priezvisko")
         tel = st.text_input("Telefónne číslo")
         email = st.text_input("E-mail")
-        mesto_detaily = st.text_area("Miesto konania a iné detaily")
+        mesto_detaily = st.text_area("Miesto konania and iné detaily")
         
         if st.form_submit_button("ODOSLAŤ REZERVÁCIU"):
             db = nacti_data()
