@@ -15,9 +15,9 @@ KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg"
 
 # --- DIZAJN ---
 def apply_style():
-    # 1. Klasické CSS pre pozadie, formuláre a novú animovanú triedu
     st.markdown(f"""
         <style>
+        /* Pozadie aplikácie */
         .stApp {{
             background: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), 
                         url("{KAPELA_FOTO_URL}");
@@ -27,7 +27,15 @@ def apply_style():
             image-rendering: -webkit-optimize-contrast;
             color: #ffffff;
         }}
-        [data-testid="stSidebar"] {{ background-color: rgba(20, 20, 20, 0.85) !important; backdrop-filter: blur(12px); border-right: 1px solid #d4af37; }}
+        
+        /* ÚPLNÉ SKRYTIE BOČNÉHO PANELU A ŠÍPKY */
+        [data-testid="collapsedSidebarNoOverlay"], 
+        [data-testid="stSidebar"], 
+        button[data-testid="stSidebarCollapseButton"] {{
+            display: none !important;
+        }}
+        
+        /* Nadpisy */
         h1, h2, h3, h4 {{ color: #d4af37 !important; font-family: 'Playfair Display', serif; text-shadow: 4px 4px 8px #000000; text-align: center; }}
         
         .info-box {{
@@ -52,65 +60,50 @@ def apply_style():
             font-size: 0.95rem;
         }}
 
-        /* --- ŠTÝL PRE ZLATÉ PULZUJÚCE TLAČIDLO ŠÍPKY --- */
-        .zlate-menu-tlacidlo {{
+        /* --- ŠTÝLOVANIE HORNÉHO MENU (ZMENA RADIO BUTTONU NA TLAČIDLÁ) --- */
+        div[data-testid="stRadio"] {{
+            background: transparent !important;
+            padding: 10px 0 !important;
+        }}
+        div[data-testid="stRadio"] > div[role="radiogroup"] {{
+            display: flex !important;
+            flex-direction: row !important;
+            justify-content: center !important;
+            flex-wrap: wrap !important;
+            gap: 12px !important;
+        }}
+        /* Skrytie okrúhlych prepínačov (guličiek) */
+        div[data-testid="stRadio"] div[role="radiogroup"] > label > div:first-child {{
+            display: none !important;
+        }}
+        /* Tlačidlá menu */
+        div[data-testid="stRadio"] div[role="radiogroup"] > label {{
+            background-color: rgba(0, 0, 0, 0.75) !important;
+            border: 2px solid #d4af37 !important;
+            color: #ffffff !important;
+            padding: 12px 24px !important;
+            border-radius: 30px !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            font-weight: bold !important;
+            text-align: center !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
+            min-width: 140px !important;
+        }}
+        /* Prechod pri prejdení myšou */
+        div[data-testid="stRadio"] div[role="radiogroup"] > label:hover {{
+            background-color: rgba(212, 175, 55, 0.25) !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 15px rgba(212, 175, 55, 0.3) !important;
+        }}
+        /* Aktívne vybrané tlačidlo */
+        div[data-testid="stRadio"] div[role="radiogroup"] > label[data-checked="true"] {{
             background-color: #d4af37 !important;
             color: #000000 !important;
-            border-radius: 10px !important;
-            border: 2px solid #ffffff !important;
-            box-shadow: 0 0 15px #d4af37 !important;
-            animation: bouncePulse 2s infinite !important;
-            width: 45px !important;
-            height: 45px !important;
-            display: flex !important;
-            align-items: center !important;
-            justify-content: center !important;
-            cursor: pointer !important;
-            transition: 0.3s !important;
-        }}
-
-        .zlate-menu-tlacidlo svg {{
-            color: #000000 !important;
-            fill: #000000 !important;
-            width: 26px !important;
-            height: 26px !important;
-        }}
-
-        @keyframes bouncePulse {{
-            0%, 100% {{
-                transform: scale(1) translateX(0);
-                box-shadow: 0 0 8px #d4af37;
-            }}
-            50% {{
-                transform: scale(1.18) translateX(6px);
-                box-shadow: 0 0 20px #d4af37, 0 0 30px #d4af37;
-            }}
+            box-shadow: 0 0 18px #d4af37 !important;
+            border-color: #ffffff !important;
         }}
         </style>
-    """, unsafe_allow_html=True)
-
-    # 2. JavaScript, ktorý nájde šípku na webe a aplikuje na ňu zlatý štýl (beží každých 0.5s pre prípad preklikávania)
-    st.markdown("""
-        <script>
-        const upravTlacidloMenu = () => {
-            const cieloveDokumenty = [document, parent.document];
-            cieloveDokumenty.forEach(doc => {
-                try {
-                    // Nájdeme tlačidlá, ktoré Streamlit používa na otváranie/zatváranie sidebar-u
-                    const tlacidla = doc.querySelectorAll('button[data-testid="stSidebarCollapseButton"], button[aria-label="Expand sidebar"], button[aria-label="Collapse sidebar"]');
-                    tlacidla.forEach(btn => {
-                        if (!btn.classList.contains('zlate-menu-tlacidlo')) {
-                            btn.classList.add('zlate-menu-tlacidlo');
-                        }
-                    });
-                } catch(e) {
-                    // Ignorujeme prípadné bezpečnostné chyby prístupu do parent.document
-                }
-            });
-        };
-        // Spúšťame opakovane, aby sa tlačidlo preafarbilo aj po načítaní/zmene sekcie
-        setInterval(upravTlacidloMenu, 500);
-        </script>
     """, unsafe_allow_html=True)
 
 # --- FUNKCIE ---
@@ -134,8 +127,16 @@ def posli_upozornenie(text):
 st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎻", layout="centered")
 apply_style()
 
-st.sidebar.markdown("## PAROBCI")
-menu = st.sidebar.radio("NAVIGÁCIA", ["🎸 Rezervácia", "📸 Galéria", "🔐 Administrácia"])
+# MODERNÉ HORNÉ NAVIGAČNÉ MENU
+menu = st.radio(
+    "NAVIGÁCIA", 
+    ["🎸 Rezervácia", "📸 Galéria", "🔐 Administrácia"], 
+    horizontal=True,
+    label_visibility="collapsed"
+)
+
+# Medzera pod menu
+st.markdown("<br>", unsafe_allow_html=True)
 
 # --- 1. REZERVÁCIA ---
 if menu == "🎸 Rezervácia":
@@ -178,8 +179,13 @@ elif menu == "📸 Galéria":
 
 # --- 3. ADMIN ---
 else:
-    st.title("🔐 Administrácia")
+    # Hlavička administrácie s odhlasovacím tlačidlom
+    col_title, col_logout = st.columns([3, 1])
+    with col_title:
+        st.title("🔐 Administrácia")
+    
     if 'auth' not in st.session_state: st.session_state['auth'] = False
+    
     if not st.session_state['auth']:
         with st.form("login"):
             u = st.text_input("Meno"); h = st.text_input("Heslo", type="password")
@@ -187,7 +193,12 @@ else:
                 if u == LOGIN_MENO and h == LOGIN_HESLO: st.session_state['auth'] = True; st.rerun()
                 else: st.error("Chyba!")
     else:
-        if st.sidebar.button("Odhlásiť sa"): st.session_state['auth'] = False; st.rerun()
+        with col_logout:
+            st.write("") # prázdne miesto pre zarovnanie s nadpisom
+            if st.button("Odhlásiť sa", key="logout_btn"): 
+                st.session_state['auth'] = False
+                st.rerun()
+                
         t1, t2, t3 = st.tabs(["📩 Nové dopyty", "📅 Kalendár", "➕ Pridať"])
         db = nacti_data()
         
