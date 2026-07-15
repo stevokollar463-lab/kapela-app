@@ -17,7 +17,7 @@ KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg"
 CENA_OSLAVA_HODINA = 130
 CENA_SPRIEVOD_ZAKLAD = 300
 CENA_SPRIEVOD_POLHODINA = 50
-CENA_STOLY_HODINA = 150
+CENA_STOLY_HODINA = 120
 CENA_APARATURA = 100  # Príplatok za ozvučenie, mixpult a mikrofóny
 CENA_ZA_KM = 0.50     # 0.50 € za km (zahŕňa cestu tam aj späť)
 
@@ -169,7 +169,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 # --- 1. REZERVÁCIA (S kalkulačkou a aparatúrou) ---
 if menu == "🎸 Rezervácia":
     st.title("🎻 Rezervácia vystúpenia")
-    st.markdown('<div class="info-box">🪗 Akordeón | 🎻 Husle | 🥁 Bubon | 🎷 Saxofón</div>', unsafe_allow_html=True)
+    st.markdown('<div class="info-box">🪗 Akordeón x 2 | 🎻 Husle | 🥁 Bubon | 🎷 Saxofón</div>', unsafe_allow_html=True)
     
     # --- INTERAKTÍVNA KALKULAČKA (MIMO FORMULÁRA) ---
     st.markdown("<h4 style='text-align: center; margin-bottom: 5px; margin-top: 20px;'>Výpočet ceny vystúpenia</h4>", unsafe_allow_html=True)
@@ -301,7 +301,7 @@ elif menu == "💰 Cenník":
                 </tr>
                 <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
                     <td style="padding: 12px; font-weight: bold;">🍻 Hranie pomedzi stoly / Posedenie</td>
-                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">150 € / hodina</td>
+                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">120 € / hodina</td>
                     <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Komorné akustické hranie naživo priamo medzi hosťami.</td>
                 </tr>
                 <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
