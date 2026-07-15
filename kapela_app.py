@@ -17,9 +17,9 @@ KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg"
 CENA_OSLAVA_HODINA = 130
 CENA_SPRIEVOD_ZAKLAD = 300
 CENA_SPRIEVOD_POLHODINA = 50
-CENA_STOLY_HODINA = 120
-CENA_APARATURA = 100  # Príplatok za ozvučenie, mixpult a mikrofóny
-CENA_ZA_KM = 0.50     # 0.50 € za km (zahŕňa cestu tam aj späť)
+CENA_STOLY_HODINA = 120  # Opravené na 120 € / hodina
+CENA_APARATURA = 100     # Príplatok za ozvučenie, mixpult a mikrofóny (bez prívlastku bezdrôtové)
+CENA_ZA_KM = 0.50        # 0.50 € za km (zahŕňa cestu tam aj späť)
 
 # --- DIZAJN ---
 def apply_style():
@@ -145,12 +145,16 @@ def nacti_data():
 def uloz_data(data):
     with open(DB_FILE, "w") as f: json.dump(data, f, indent=4)
 
+# VYLEPŠENÁ FUNKCIA S VÝPISOM CHYBY PRE JEDNODUCHÚ DIAGNOSTIKU
 def posli_upozornenie(text):
     try:
         pb = Pushbullet(PB_API_KEY)
         pb.push_note("🎸 NOVÝ DOPYT", text)
         return True
-    except: return False
+    except Exception as e:
+        # Vypíše presnú príčinu zlyhania priamo červeným boxom v aplikácii
+        st.error(f"⚠️ Pushbullet neodoslal správu! Chyba: {e}")
+        return False
 
 # --- ŠTART APP ---
 st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎻", layout="centered")
@@ -169,7 +173,7 @@ st.markdown("<br>", unsafe_allow_html=True)
 # --- 1. REZERVÁCIA (S kalkulačkou a aparatúrou) ---
 if menu == "🎸 Rezervácia":
     st.title("🎻 Rezervácia vystúpenia")
-    st.markdown('<div class="info-box">🪗 Akordeón x 2 | 🎻 Husle | 🥁 Bubon | 🎷 Saxofón</div>', unsafe_allow_html=True)
+    st.markdown('<div class="info-box">🪗 Akordeón | 🎻 Husle | 🥁 Bubon | 🎷 Saxofón</div>', unsafe_allow_html=True)
     
     # --- INTERAKTÍVNA KALKULAČKA (MIMO FORMULÁRA) ---
     st.markdown("<h4 style='text-align: center; margin-bottom: 5px; margin-top: 20px;'>Výpočet ceny vystúpenia</h4>", unsafe_allow_html=True)
@@ -191,7 +195,7 @@ if menu == "🎸 Rezervácia":
             cena_hudba = hodiny * CENA_OSLAVA_HODINA
             popis_hudby = f"Rodinná oslava ({hodiny} hod.)"
             
-        elif typ_akcie == "👰 Svadobný sprievod a odobierka":
+        elif typ_akcie == "👰 Svadobný sprievod and odobierka":
             st.info("Základná cena zahŕňa sprievod do 2 hodín (akusticky).")
             polhodiny_navyse = st.slider("Čas navyše (počet začatých polhodín)", min_value=0, max_value=10, value=0, key="extra_sprievod")
             cena_hudba = CENA_SPRIEVOD_ZAKLAD + (polhodiny_navyse * CENA_SPRIEVOD_POLHODINA)
@@ -208,7 +212,7 @@ if menu == "🎸 Rezervácia":
     with col_km:
         km = st.slider("Vzdialenosť z obce Ovčie (v km jednosmerne)", min_value=0, max_value=300, value=0, step=5, key="calc_km")
     
-    # ZAŠKRTÁVACIE POLÍČKO PRE APARATÚRU
+    # ZAŠKRTÁVACIE POLÍČKO PRE APARATÚRU (bez slova "bezdrôtové")
     potrebuje_aparaturu = st.checkbox(
         f"Zabezpečiť zvukovú aparatúru (aktívne reprobedne, mixpult, mikrofóny) (+{CENA_APARATURA} €)",
         value=False,
@@ -249,7 +253,7 @@ if menu == "🎸 Rezervácia":
         meno = st.text_input("Meno a priezvisko")
         tel = st.text_input("Telefónne číslo")
         email = st.text_input("E-mail")
-        mesto_detaily = st.text_area("Presná adresa konania (mesto/sála) and iné detaily")
+        mesto_detaily = st.text_area("Presná adresa konania (mesto/sála) a iné detaily")
         
         if st.form_submit_button("ODOSLAŤ REZERVÁCIU S TOUTO CENOU"):
             db = nacti_data()
@@ -276,7 +280,7 @@ if menu == "🎸 Rezervácia":
                 posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nTyp: {typ_akcie} ({txt_aparatury})\nMiesto: {mesto_detaily}\nCena: {vypocitana_cena_txt}")
                 st.balloons(); st.success("Odoslané! Ozveme sa vám. ✅")
 
-# --- 2. PODROBNÝ CENNÍK ---
+# --- 2. PODROBNÝ CENNÍK (Upravená cena za stoly na 120 €) ---
 elif menu == "💰 Cenník":
     st.title("💰 Cenník služieb")
     
@@ -301,7 +305,7 @@ elif menu == "💰 Cenník":
                 </tr>
                 <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
                     <td style="padding: 12px; font-weight: bold;">🍻 Hranie pomedzi stoly / Posedenie</td>
-                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">120 € / hodina</td>
+                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">{CENA_STOLY_HODINA} € / hodina</td>
                     <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Komorné akustické hranie naživo priamo medzi hosťami.</td>
                 </tr>
                 <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
