@@ -14,7 +14,10 @@ LOGIN_HESLO = "OvcanskeParobci123"
 KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg" 
 
 # --- NASTAVENIE CIEN ---
-CENA_ZA_HODINU = 130  # 130 € za hodinu hrania
+CENA_OSLAVA_HODINA = 130
+CENA_SPRIEVOD_ZAKLAD = 300
+CENA_SPRIEVOD_POLHODINA = 50
+CENA_STOLY_HODINA = 150
 CENA_ZA_KM = 0.50     # 0.50 € za km (zahŕňa cestu tam aj späť)
 
 # --- DIZAJN ---
@@ -59,7 +62,6 @@ def apply_style():
             border-radius: 20px;
             box-shadow: 0 0 25px rgba(212, 175, 55, 0.25);
             margin-bottom: 25px;
-            text-align: center;
         }}
 
         /* Zlatý box pre výsledok kalkulačky */
@@ -163,23 +165,50 @@ menu = st.radio(
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- 1. REZERVÁCIA (S kalkulačkou, ktorá reaguje ihneď) ---
+# --- 1. REZERVÁCIA (S kalkulačkou podla typu akcie) ---
 if menu == "🎸 Rezervácia":
     st.title("🎻 Rezervácia vystúpenia")
     st.markdown('<div class="info-box">🪗 Akordeón | 🎻 Husle | 🥁 Bubon | 🎷 Saxofón</div>', unsafe_allow_html=True)
     
-    # --- INTERAKTÍVNA KALKULAČKA (MIMO FORMULÁRA pre okamžitú odozvu) ---
+    # --- INTERAKTÍVNA KALKULAČKA (MIMO FORMULÁRA) ---
     st.markdown("<h4 style='text-align: center; margin-bottom: 5px; margin-top: 20px;'>Výpočet ceny vystúpenia</h4>", unsafe_allow_html=True)
     
-    col_hours, col_km = st.columns(2)
-    with col_hours:
-        hodiny = st.slider("Predpokladaná dĺžka hrania (v hodinách)", min_value=1, max_value=12, value=5, key="calc_hours")
+    # Výber typu akcie
+    typ_akcie = st.selectbox(
+        "Vyberte typ vystúpenia:",
+        ["🎂 Rodinná oslava / Jubileum", "👰 Svadobný sprievod a odobierka", "🍻 Hranie pomedzi stoly / Posedenie"]
+    )
+    
+    col_vstupy, col_km = st.columns(2)
+    
+    cena_hudba = 0
+    popis_hudby = ""
+    
+    with col_vstupy:
+        if typ_akcie == "🎂 Rodinná oslava / Jubileum":
+            hodiny = st.slider("Dĺžka hrania (v hodinách)", min_value=1, max_value=12, value=5, key="hours_oslava")
+            cena_hudba = hodiny * CENA_OSLAVA_HODINA
+            popis_hudby = f"Rodinná oslava ({hodiny} hod.)"
+            
+        elif typ_akcie == "👰 Svadobný sprievod a odobierka":
+            st.info("Základná cena zahŕňa sprievod do 2 hodín.")
+            polhodiny_navyse = st.slider("Čas navyše (počet začatých polhodín)", min_value=0, max_value=10, value=0, key="extra_sprievod")
+            cena_hudba = CENA_SPRIEVOD_ZAKLAD + (polhodiny_navyse * CENA_SPRIEVOD_POLHODINA)
+            if polhodiny_navyse > 0:
+                popis_hudby = f"Svadobný sprievod (2 hod. + {polhodiny_navyse}x polhodina navyše)"
+            else:
+                popis_hudby = "Svadobný sprievod (základ do 2 hod.)"
+                
+        elif typ_akcie == "🍻 Hranie pomedzi stoly / Posedenie":
+            hodiny = st.slider("Dĺžka hrania (v hodinách)", min_value=1, max_value=12, value=3, key="hours_stoly")
+            cena_hudba = hodiny * CENA_STOLY_HODINA
+            popis_hudby = f"Hranie pomedzi stoly ({hodiny} hod.)"
+
     with col_km:
         km = st.slider("Vzdialenosť z obce Ovčie (v km jednosmerne)", min_value=0, max_value=300, value=0, step=5, key="calc_km")
     
-    # Výpočet ceny
-    cena_hudba = hodiny * CENA_ZA_HODINU
-    cena_doprava = km * 2 * CENA_ZA_KM  # Cesta tam aj späť
+    # Výpočet dopravy a celkovej ceny
+    cena_doprava = km * 2 * CENA_ZA_KM
     celkova_cena = cena_hudba + cena_doprava
     
     # Zobrazenie ceny v reálnom čase
@@ -187,7 +216,7 @@ if menu == "🎸 Rezervácia":
         <div class="kalkulacka-box">
             <span style="font-size: 1.1rem; color: #ccc;">Odhadovaná cena vystúpenia:</span><br>
             <span style="font-size: 2.2rem; font-weight: bold; color: #d4af37;">{celkova_cena:.2f} €</span><br>
-            <small style="color: #aaa;">(Hranie {hodiny} hod.: {cena_hudba:.2f} € | Doprava {km*2} km celkovo: {cena_doprava:.2f} €)</small>
+            <small style="color: #aaa;">({popis_hudby}: {cena_hudba:.2f} € | Doprava {km*2} km celkovo: {cena_doprava:.2f} €)</small>
         </div>
     """, unsafe_allow_html=True)
     
@@ -214,8 +243,7 @@ if menu == "🎸 Rezervácia":
             elif not meno or not tel:
                 st.warning("Vyplňte, prosím, vaše meno a telefónne číslo.")
             else:
-                # Načíta hodnoty z posuvníkov, ktoré sú mimo formulára
-                vypocitana_cena_txt = f"{celkova_cena:.2f} € ({hodiny} hod. hrania, {km} km jednosmerne)"
+                vypocitana_cena_txt = f"{celkova_cena:.2f} € ({popis_hudby}, {km} km jednosmerne)"
                 nova = {
                     "id": str(datetime.now().timestamp()), 
                     "datum": str(datum), 
@@ -223,32 +251,55 @@ if menu == "🎸 Rezervácia":
                     "meno": meno, 
                     "tel": tel, 
                     "email": email, 
-                    "detaily": mesto_detaily, 
-                    "vypocitana_cena": vypocitana_cena_txt,  # Uloží sa do JSONu pre admina
+                    "detaily": f"[{typ_akcie}] {mesto_detaily}", 
+                    "vypocitana_cena": vypocitana_cena_txt,  
                     "stav": "cakajuce"
                 }
                 db.append(nova); uloz_data(db)
-                posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nMiesto: {mesto_detaily}\nCena: {vypocitana_cena_txt}")
+                posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nTyp: {typ_akcie}\nMiesto: {mesto_detaily}\nCena: {vypocitana_cena_txt}")
                 st.balloons(); st.success("Odoslané! Ozveme sa vám. ✅")
 
-# --- 2. ČISTO INFORMATÍVNY CENNÍK ---
+# --- 2. PODROBNÝ CENNÍK ---
 elif menu == "💰 Cenník":
     st.title("💰 Cenník služieb")
     
     st.markdown(f"""
         <div class="cennik-container">
-            <h3 style="margin-top: 0; color: #d4af37;">Naše sadzby</h3>
-            <p style="font-size: 1.3rem; margin-bottom: 15px;">
-                🎻 <b>Hranie na akcii:</b> <span style="color: #d4af37; font-weight: bold;">{CENA_ZA_HODINU} € / hodina</span>
-            </p>
-            <p style="font-size: 1.3rem; margin-bottom: 5px;">
-                🚗 <b>Doprava (z obce Ovčie):</b> <span style="color: #d4af37; font-weight: bold;">{CENA_ZA_KM:.2f} € / km</span>
-            </p>
-            <small style="color:#aaa;">* Poplatok za dopravu zahŕňa kompletnú cestu tam aj späť.</small>
+            <h3 style="margin-top: 0; padding-top: 20px; color: #d4af37; text-align: center;">Naše sadzby (sme 5-členná kapela)</h3>
+            <table style="width: 100%; color: #fff; border-collapse: collapse; margin-top: 20px;">
+                <tr style="border-bottom: 2px solid #d4af37; text-align: left;">
+                    <th style="padding: 12px; color: #d4af37;">Služba</th>
+                    <th style="padding: 12px; color: #d4af37;">Cena</th>
+                    <th style="padding: 12px; color: #d4af37;">Poznámka</th>
+                </tr>
+                <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
+                    <td style="padding: 12px; font-weight: bold;">🎂 Rodinná oslava / Jubileum</td>
+                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">130 € / hodina</td>
+                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Hranie na oslavách, narodeninách, tancovačky.</td>
+                </tr>
+                <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
+                    <td style="padding: 12px; font-weight: bold;">👰 Svadobný sprievod a odobierka</td>
+                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">300 € základ</td>
+                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Základ do 2 hodín. Každá ďalšia začatá polhodina je +50 €.</td>
+                </tr>
+                <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
+                    <td style="padding: 12px; font-weight: bold;">🍻 Hranie pomedzi stoly / Posedenie</td>
+                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">150 € / hodina</td>
+                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Komorné akustické hranie priamo medzi hosťami.</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; font-weight: bold;">🚗 Doprava (z obce Ovčie)</td>
+                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">0.50 € / km</td>
+                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Suma zahŕňa kompletnú cestu tam aj späť.</td>
+                </tr>
+            </table>
+            <div style="padding: 20px; text-align: center; color: #aaa; font-size: 0.85rem;">
+                * Ceny sú konečné pre celú našu 5-člennú zostavu (akordeóny, husle, saxofón, bubon).
+            </div>
         </div>
         <div style="text-align: center; margin-top: 20px;">
-            <p style="font-size: 1.1rem; color: #ccc;">Chcete si presne vypočítať cenu pre vašu oslavu, svadbu alebo podujatie?</p>
-            <p>Prejdite hore na záložku <b>🎸 Rezervácia</b>, kde nájdete automatickú kalkulačku priamo vo formulári.</p>
+            <p style="font-size: 1.1rem; color: #ccc;">Chcete si presne vypočítať cenu pre vaše podujatie?</p>
+            <p>Prejdite hore na záložku <b>🎸 Rezervácia</b>, kde si zvolíte typ akcie a kalkulačka vám hneď napočíta presnú cenu.</p>
         </div>
     """, unsafe_allow_html=True)
 
