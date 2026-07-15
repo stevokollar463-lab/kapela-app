@@ -249,7 +249,7 @@ if menu == "🎸 Rezervácia":
         meno = st.text_input("Meno a priezvisko")
         tel = st.text_input("Telefónne číslo")
         email = st.text_input("E-mail")
-        mesto_detaily = st.text_area("Presná adresa konania (mesto/sála) a iné detaily")
+        mesto_detaily = st.text_area("Presná adresa konania (mesto/sála) and iné detaily")
         
         if st.form_submit_button("ODOSLAŤ REZERVÁCIU S TOUTO CENOU"):
             db = nacti_data()
@@ -307,7 +307,7 @@ elif menu == "💰 Cenník":
                 <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
                     <td style="padding: 12px; font-weight: bold;">🎤 Profesionálna zvuková aparatúra</td>
                     <td style="padding: 12px; color: #d4af37; font-weight: bold;">+{CENA_APARATURA} € jednorazovo</td>
-                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Aktívne reprobedne, mixpult a bezdrôtové mikrofóny (pre väčšie sály/vonku).</td>
+                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Aktívne reprobedne, mixpult a mikrofóny (pre väčšie sály/vonku).</td>
                 </tr>
                 <tr>
                     <td style="padding: 12px; font-weight: bold;">🚗 Doprava (z obce Ovčie)</td>
