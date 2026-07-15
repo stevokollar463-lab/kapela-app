@@ -6,9 +6,9 @@ from pushbullet import Pushbullet
 
 # --- KONFIGURÁCIA ---
 DB_FILE = "kalendar_kapely.json"
-PB_API_KEY = "o.Lu0KSVq6YmpdGQU7oDoSpr5fEemwdDHL"  # Sem vlož úplne nový kľúč z Pushbulletu
+PB_API_KEY = "o.Lu0KSVq6YmpdGQU7oDoSpr5fEemwdDHL"  # Sem vlož svoj overený kľúč z Pushbulletu
 LOGIN_MENO = "ovcanskeparobci"
-LOGIN_HESLO = "OvcanskeParobci123"  # Sem si napíš nové bezpečné heslo
+LOGIN_HESLO = "OvcanskeParobci123"  # Sem si napíš svoje bezpečné heslo
 
 # HLAVNÁ FOTKA POZADIA
 KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg" 
@@ -17,108 +17,164 @@ KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg"
 CENA_OSLAVA_HODINA = 130
 CENA_SPRIEVOD_ZAKLAD = 300
 CENA_SPRIEVOD_POLHODINA = 50
-CENA_STOLY_HODINA = 120  # Zachovaná upravená cena 120 €
+CENA_STOLY_HODINA = 120  
 CENA_APARATURA = 100     
 CENA_ZA_KM = 0.50        
 
-# --- DIZAJN ---
+# --- DIZAJN A MOBILNÁ OPTIMALIZÁCIA ---
 def apply_style():
     st.markdown(f"""
         <style>
+        /* Hlavné pozadie s tmavým prekrytím pre lepší kontrast */
         .stApp {{
-            background: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), 
+            background: linear-gradient(rgba(0, 0, 0, 0.85), rgba(0, 0, 0, 0.85)), 
                         url("{KAPELA_FOTO_URL}");
             background-size: cover;
             background-position: center center;
             background-attachment: fixed;
             image-rendering: -webkit-optimize-contrast;
-            color: #ffffff;
+            color: #ffffff !important;
         }}
         
+        /* Zaistenie čitateľnosti bežných textov, ktoré Streamlit generuje */
+        .stApp p, .stApp span, .stApp label, .stApp li {{
+            color: #ffffff !important;
+            text-shadow: 1px 1px 3px #000000 !important;
+            font-weight: 500 !important;
+        }}
+        
+        /* Skrytie nepotrebného bočného menu */
         [data-testid="collapsedSidebarNoOverlay"], 
         [data-testid="stSidebar"], 
         button[data-testid="stSidebarCollapseButton"] {{
             display: none !important;
         }}
         
-        h1, h2, h3, h4 {{ color: #d4af37 !important; font-family: 'Playfair Display', serif; text-shadow: 4px 4px 8px #000000; text-align: center; }}
+        /* Nadpisy optimalizované pre mobil s výrazným čiernym tieňom */
+        h1 {{ 
+            color: #d4af37 !important; 
+            font-family: 'Playfair Display', serif; 
+            text-shadow: 3px 3px 8px #000000 !important; 
+            text-align: center;
+            font-size: calc(1.8rem + 1vw) !important;
+        }}
+        h2, h3, h4 {{ 
+            color: #d4af37 !important; 
+            font-family: 'Playfair Display', serif; 
+            text-shadow: 2px 2px 6px #000000 !important; 
+            text-align: center; 
+        }}
         
+        /* Boxíky s tmavým pozadím, aby písmo nesplývalo */
         .info-box {{
-            background: rgba(212, 175, 55, 0.15);
-            border: 1px solid #d4af37;
+            background: rgba(0, 0, 0, 0.8) !important;
+            border: 2px solid #d4af37;
             padding: 15px;
-            border-radius: 15px;
+            border-radius: 12px;
             text-align: center;
             margin: 10px 0;
+            font-size: 1.0rem;
+            color: #ffffff !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
         }}
 
         .cennik-container {{
-            background: rgba(0, 0, 0, 0.85);
+            background: rgba(0, 0, 0, 0.9) !important;
             border: 2px solid #d4af37;
-            padding: 25px;
-            border-radius: 20px;
-            box-shadow: 0 0 25px rgba(212, 175, 55, 0.25);
-            margin-bottom: 25px;
+            padding: 15px;
+            border-radius: 15px;
+            box-shadow: 0 5px 20px rgba(0, 0, 0, 0.8);
+            margin-bottom: 20px;
         }}
 
+        /* Zaistenie, že sa tabuľka na mobile dá posúvať do strán a nerozhádže sa */
+        .table-responsive {{
+            display: block;
+            width: 100%;
+            overflow-x: auto;
+            -webkit-overflow-scrolling: touch;
+        }}
+
+        /* Kalkulačka s tmavým podkladom kvôli čitateľnosti */
         .kalkulacka-box {{
-            background: rgba(212, 175, 55, 0.25);
+            background: rgba(0, 0, 0, 0.85) !important;
             border: 2px dashed #d4af37;
             padding: 20px;
-            border-radius: 15px;
+            border-radius: 12px;
             text-align: center;
-            margin: 20px 0;
-            box-shadow: 0 0 15px rgba(212, 175, 55, 0.20);
+            margin: 15px 0;
+            box-shadow: 0 5px 15px rgba(0, 0, 0, 0.7);
         }}
 
-        .stForm {{ background-color: rgba(0, 0, 0, 0.8) !important; border: 2px solid #d4af37 !important; border-radius: 20px; padding: 30px; }}
-        .stButton>button {{ background-color: #d4af37 !important; color: black !important; border-radius: 12px !important; font-weight: bold !important; width: 100%; transition: 0.3s; }}
+        /* Formuláre musia byť dostatočne tmavé */
+        .stForm {{ 
+            background-color: rgba(0, 0, 0, 0.9) !important; 
+            border: 2px solid #d4af37 !important; 
+            border-radius: 15px; 
+            padding: 20px !important; 
+            box-shadow: 0 10px 25px rgba(0,0,0,0.7) !important;
+        }}
         
-        .admin-detail-box {{
-            background-color: rgba(0, 100, 255, 0.15);
-            border-left: 5px solid #0064ff;
-            padding: 10px;
-            margin: 10px 0;
-            border-radius: 5px;
-            font-size: 0.95rem;
+        /* Vylepšenie textových polí (vstupov) pre lepšiu čitateľnosť */
+        .stForm input, .stForm textarea {{
+            background-color: rgba(30, 30, 30, 0.9) !important;
+            color: #ffffff !important;
+            border: 1px solid #d4af37 !important;
         }}
-
+        
+        .stButton>button {{ 
+            background-color: #d4af37 !important; 
+            color: black !important; 
+            border-radius: 10px !important; 
+            font-weight: bold !important; 
+            width: 100%; 
+            padding: 12px !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.4) !important;
+            border: none !important;
+        }}
+        
+        /* Mobilné prispôsobenie pre horné tlačidlá (NAVIGÁCIA) */
         div[data-testid="stRadio"] {{
             background: transparent !important;
-            padding: 10px 0 !important;
+            padding: 5px 0 !important;
         }}
         div[data-testid="stRadio"] > div[role="radiogroup"] {{
             display: flex !important;
             flex-direction: row !important;
             justify-content: center !important;
             flex-wrap: wrap !important;
-            gap: 12px !important;
+            gap: 8px !important;
         }}
         div[data-testid="stRadio"] div[role="radiogroup"] > label > div:first-child {{
             display: none !important;
         }}
         div[data-testid="stRadio"] div[role="radiogroup"] > label {{
-            background-color: rgba(0, 0, 0, 0.75) !important;
+            background-color: rgba(0, 0, 0, 0.9) !important;
             border: 2px solid #d4af37 !important;
             color: #ffffff !important;
-            padding: 12px 24px !important;
-            border-radius: 30px !important;
+            padding: 8px 16px !important;
+            border-radius: 20px !important;
             cursor: pointer !important;
-            transition: all 0.3s ease !important;
+            transition: all 0.2s ease !important;
             font-weight: bold !important;
             text-align: center !important;
-            box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
-            min-width: 140px !important;
+            box-shadow: 0 4px 8px rgba(0,0,0,0.6) !important;
+            font-size: 0.85rem !important;
+            flex-grow: 1;
+            max-width: 45%; /* Na mobile sa zoradia pekne 2 a 2 vedľa seba */
+        }}
+        @media (min-width: 600px) {{
+            div[data-testid="stRadio"] div[role="radiogroup"] > label {{
+                max-width: unset !important;
+                font-size: 0.95rem !important;
+            }}
         }}
         div[data-testid="stRadio"] div[role="radiogroup"] > label:hover {{
             background-color: rgba(212, 175, 55, 0.25) !important;
-            transform: translateY(-2px) !important;
-            box-shadow: 0 6px 15px rgba(212, 175, 55, 0.3) !important;
         }}
         div[data-testid="stRadio"] div[role="radiogroup"] > label[data-checked="true"] {{
             background-color: #d4af37 !important;
             color: #000000 !important;
-            box-shadow: 0 0 18px #d4af37 !important;
             border-color: #ffffff !important;
         }}
         </style>
@@ -134,7 +190,6 @@ def nacti_data():
 def uloz_data(data):
     with open(DB_FILE, "w") as f: json.dump(data, f, indent=4)
 
-# ZACHOVÁVAME DETEKCIU CHÝB, ABY SME MALI ISTOTU
 def posli_upozornenie(text):
     try:
         pb = Pushbullet(PB_API_KEY)
@@ -166,10 +221,10 @@ if menu == "🎸 Rezervácia":
     
     typ_akcie = st.selectbox(
         "Vyberte typ vystúpenia:",
-        ["🎂 Rodinná oslava / Jubileum", "👰 Svadobný sprievod a odobierka", "🍻 Hranie pomedzi stoly / Posedenie"]
+        ["🎂 Rodinná oslava / Jubileum", "👰 Svadobný sprievod and odobierka", "🍻 Hranie pomedzi stoly / Posedenie"]
     )
     
-    col_vstupy, col_km = st.columns(2)
+    col_vstupy, col_km = st.columns([1, 1])
     cena_hudba = 0
     popis_hudby = ""
     
@@ -179,7 +234,7 @@ if menu == "🎸 Rezervácia":
             cena_hudba = hodiny * CENA_OSLAVA_HODINA
             popis_hudby = f"Rodinná oslava ({hodiny} hod.)"
             
-        elif typ_akcie == "👰 Svadobný sprievod a odobierka":
+        elif typ_akcie == "👰 Svadobný sprievod and odobierka":
             st.info("Základná cena zahŕňa sprievod do 2 hodín (akusticky).")
             polhodiny_navyse = st.slider("Čas navyše (počet začatých polhodín)", min_value=0, max_value=10, value=0, key="extra_sprievod")
             cena_hudba = CENA_SPRIEVOD_ZAKLAD + (polhodiny_navyse * CENA_SPRIEVOD_POLHODINA)
@@ -197,9 +252,9 @@ if menu == "🎸 Rezervácia":
         km = st.slider("Vzdialenosť z obce Ovčie (v km jednosmerne)", min_value=0, max_value=300, value=0, step=5, key="calc_km")
     
     potrebuje_aparaturu = st.checkbox(
-        f"Zabezpečiť zvukovú aparatúru (aktívne reprobedne, mixpult, mikrofóny) (+{CENA_APARATURA} €)",
+        f"Zabezpečiť zvukovú aparatúru (+{CENA_APARATURA} €)",
         value=False,
-        help="Zvoľte, ak sa akcia koná vo väčšej sále alebo vonku a je potrebné, aby sme boli ozvučení."
+        help="Zvoľte, ak sa akcia koná vo väčšej sále alebo vonku a je potrebné ozvučenie."
     )
     
     cena_doprava = km * 2 * CENA_ZA_KM
@@ -209,13 +264,13 @@ if menu == "🎸 Rezervácia":
     detaily_vypoctu = f"{popis_hudby}: {cena_hudba:.2f} €"
     if potrebuje_aparaturu:
         detaily_vypoctu += f" | Ozvučenie: {CENA_APARATURA:.2f} €"
-    detaily_vypoctu += f" | Doprava {km*2} km celkovo: {cena_doprava:.2f} €"
+    detaily_vypoctu += f" | Doprava: {cena_doprava:.2f} €"
     
     st.markdown(f"""
         <div class="kalkulacka-box">
-            <span style="font-size: 1.1rem; color: #ccc;">Odhadovaná cena vystúpenia:</span><br>
-            <span style="font-size: 2.2rem; font-weight: bold; color: #d4af37;">{celkova_cena:.2f} €</span><br>
-            <small style="color: #aaa;">({detaily_vypoctu})</small>
+            <span style="font-size: 1.1rem; color: #eee; text-shadow: 1px 1px 2px #000;">Odhadovaná cena vystúpenia:</span><br>
+            <span style="font-size: 2.1rem; font-weight: bold; color: #d4af37; text-shadow: 2px 2px 4px #000;">{celkova_cena:.2f} €</span><br>
+            <small style="color: #ddd; display: block; margin-top: 5px; text-shadow: 1px 1px 2px #000;">({detaily_vypoctu})</small>
         </div>
     """, unsafe_allow_html=True)
     
@@ -264,40 +319,42 @@ elif menu == "💰 Cenník":
     
     st.markdown(f"""
         <div class="cennik-container">
-            <h3 style="margin-top: 0; padding-top: 20px; color: #d4af37; text-align: center;">Naše sadzby (sme 5-členná kapela)</h3>
-            <table style="width: 100%; color: #fff; border-collapse: collapse; margin-top: 20px;">
-                <tr style="border-bottom: 2px solid #d4af37; text-align: left;">
-                    <th style="padding: 12px; color: #d4af37;">Služba</th>
-                    <th style="padding: 12px; color: #d4af37;">Cena</th>
-                    <th style="padding: 12px; color: #d4af37;">Poznámka</th>
-                </tr>
-                <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
-                    <td style="padding: 12px; font-weight: bold;">🎂 Rodinná oslava / Jubileum</td>
-                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">130 € / hodina</td>
-                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Živé hranie na oslavách, narodeninách, jubileách.</td>
-                </tr>
-                <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
-                    <td style="padding: 12px; font-weight: bold;">👰 Svadobný sprievod a odobierka</td>
-                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">300 € základ</td>
-                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Základ do 2 hodín. Každá ďalšia začatá polhodina je +50 €.</td>
-                </tr>
-                <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
-                    <td style="padding: 12px; font-weight: bold;">🍻 Hranie pomedzi stoly / Posedenie</td>
-                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">{CENA_STOLY_HODINA} € / hodina</td>
-                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Komorné akustické hranie naživo priamo medzi hosťami.</td>
-                </tr>
-                <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
-                    <td style="padding: 12px; font-weight: bold;">🎤 Profesionálna zvuková aparatúra</td>
-                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">+{CENA_APARATURA} € jednorazovo</td>
-                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Aktívne reprobedne, mixpult a mikrofóny (pre väčšie sály/vonku).</td>
-                </tr>
-                <tr>
-                    <td style="padding: 12px; font-weight: bold;">🚗 Doprava (z obce Ovčie)</td>
-                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">0.50 € / km</td>
-                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Suma zahŕňa kompletnú cestu tam aj späť.</td>
-                </tr>
-            </table>
-            <div style="padding: 20px; text-align: center; color: #aaa; font-size: 0.85rem;">
+            <h3 style="margin-top: 0; padding-top: 10px; color: #d4af37; text-align: center; font-size: 1.3rem;">Naše sadzby (sme 5-členná kapela)</h3>
+            <div class="table-responsive">
+                <table style="width: 100%; color: #fff; border-collapse: collapse; margin-top: 15px; font-size: 0.95rem; min-width: 500px;">
+                    <tr style="border-bottom: 2px solid #d4af37; text-align: left;">
+                        <th style="padding: 10px; color: #d4af37; text-shadow: 1px 1px 2px #000;">Služba</th>
+                        <th style="padding: 10px; color: #d4af37; text-shadow: 1px 1px 2px #000;">Cena</th>
+                        <th style="padding: 10px; color: #d4af37; text-shadow: 1px 1px 2px #000;">Poznámka</th>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(212,175,55,0.3);">
+                        <td style="padding: 10px; font-weight: bold; text-shadow: 1px 1px 2px #000;">🎂 Rodinná oslava / Jubileum</td>
+                        <td style="padding: 10px; color: #d4af37; font-weight: bold; text-shadow: 1px 1px 2px #000;">130 € / hod.</td>
+                        <td style="padding: 10px; color: #fff; font-size: 0.85rem; text-shadow: 1px 1px 2px #000;">Živé hranie na oslavách, narodeninách, jubileách.</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(212,175,55,0.3);">
+                        <td style="padding: 10px; font-weight: bold; text-shadow: 1px 1px 2px #000;">👰 Svadobný sprievod</td>
+                        <td style="padding: 10px; color: #d4af37; font-weight: bold; text-shadow: 1px 1px 2px #000;">300 € základ</td>
+                        <td style="padding: 10px; color: #fff; font-size: 0.85rem; text-shadow: 1px 1px 2px #000;">Do 2 hodín. Každá ďalšia začatá polhodina +50 €.</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(212,175,55,0.3);">
+                        <td style="padding: 10px; font-weight: bold; text-shadow: 1px 1px 2px #000;">🍻 Hranie pomedzi stoly</td>
+                        <td style="padding: 10px; color: #d4af37; font-weight: bold; text-shadow: 1px 1px 2px #000;">{CENA_STOLY_HODINA} € / hod.</td>
+                        <td style="padding: 10px; color: #fff; font-size: 0.85rem; text-shadow: 1px 1px 2px #000;">Komorné akustické hranie naživo priamo medzi hosťami.</td>
+                    </tr>
+                    <tr style="border-bottom: 1px solid rgba(212,175,55,0.3);">
+                        <td style="padding: 10px; font-weight: bold; text-shadow: 1px 1px 2px #000;">🎤 Ozvučovacia aparatúra</td>
+                        <td style="padding: 10px; color: #d4af37; font-weight: bold; text-shadow: 1px 1px 2px #000;">+{CENA_APARATURA} €</td>
+                        <td style="padding: 10px; color: #fff; font-size: 0.85rem; text-shadow: 1px 1px 2px #000;">Aktívne reprobedne, mixpult a mikrofóny.</td>
+                    </tr>
+                    <tr>
+                        <td style="padding: 10px; font-weight: bold; text-shadow: 1px 1px 2px #000;">🚗 Doprava (z obce Ovčie)</td>
+                        <td style="padding: 10px; color: #d4af37; font-weight: bold; text-shadow: 1px 1px 2px #000;">0.50 € / km</td>
+                        <td style="padding: 10px; color: #fff; font-size: 0.85rem; text-shadow: 1px 1px 2px #000;">Zahŕňa kompletnú cestu tam aj späť.</td>
+                    </tr>
+                </table>
+            </div>
+            <div style="padding: 15px; text-align: center; color: #ddd; font-size: 0.85rem; text-shadow: 1px 1px 2px #000;">
                 * Ceny sú konečné pre celú našu 5-člennú zostavu.
             </div>
         </div>
@@ -321,9 +378,9 @@ elif menu == "📸 Galéria":
 
 # --- 4. ADMIN ---
 else:
-    col_title, col_logout = st.columns([3, 1])
+    col_title, col_logout = st.columns([2, 1])
     with col_title:
-        st.title("🔐 Administrácia")
+        st.title("🔐 Admin")
     
     if 'auth' not in st.session_state: st.session_state['auth'] = False
     
@@ -352,7 +409,7 @@ else:
                     st.write(f"📞 **Kontakt:** {a.get('tel', '---')} | 📧 {a.get('email', '---')}")
                     st.write(f"🕒 **Čas:** {a.get('cas', '---')}")
                     st.write(f"💰 **Vypočítaná cena na webe:** {kalkulacia}")
-                    st.markdown(f"""<div class="admin-detail-box"><b>Miesto a detaily:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
+                    st.markdown(f"""<div class="info-box"><b>Miesto a detaily:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
                     
                     c1, c2, c3 = st.columns(3)
                     if c1.button("✅ Schváliť", key=f"ok{i}"):
@@ -406,7 +463,7 @@ else:
                 with st.expander(f"📅 {a['datum']} - {a.get('meno', 'Akcia')}"):
                     st.write(f"📞 {a.get('tel', '')} | 🕒 {a.get('cas', '')}")
                     st.write(f"💰 **Orientačná kalkulácia:** {kalkulacia}")
-                    st.markdown(f"""<div class="admin-detail-box"><b>Miesto/Poznámka:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
+                    st.markdown(f"""<div class="info-box"><b>Miesto/Poznámka:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
                     
                     c1, c2 = st.columns(2)
                     if c1.button("🗑️ Odstrániť", key=f"del{i}"):
@@ -454,7 +511,7 @@ else:
                     uloz_data(db); st.success("OK"); st.rerun()
 
 st.markdown(f'''
-<div style="text-align:center; margin-top:50px; color:#ccc; line-height: 1.6;">
+<div style="text-align:center; margin-top:50px; color:#fff; line-height: 1.6; font-size: 0.95rem; text-shadow: 1px 1px 3px #000; background: rgba(0,0,0,0.8); padding: 15px; border-radius: 10px; border: 1px solid #d4af37;">
     <b>Podpora</b><br>
     <b>Tel. číslo:</b> 0944 757 122<br>
     <b>E-mail:</b> kollarstevo55@gmail.com
