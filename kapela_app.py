@@ -6,9 +6,9 @@ from pushbullet import Pushbullet
 
 # --- KONFIGURÁCIA ---
 DB_FILE = "kalendar_kapely.json"
-PB_API_KEY = "o.SvGGoFyViizWlRu5slbgVHJQI3bQnxDGo.SvGGoFyViizWlRu5slbgVHJQI3bQnxDG"
+PB_API_KEY = "o.Lu0KSVq6YmpdGQU7oDoSpr5fEemwdDHL"  # Sem vlož úplne nový kľúč z Pushbulletu
 LOGIN_MENO = "ovcanskeparobci"
-LOGIN_HESLO = "OvcanskeParobci123"
+LOGIN_HESLO = "OvcanskeParobci123"  # Sem si napíš nové bezpečné heslo
 
 # HLAVNÁ FOTKA POZADIA
 KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg" 
@@ -17,15 +17,14 @@ KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg"
 CENA_OSLAVA_HODINA = 130
 CENA_SPRIEVOD_ZAKLAD = 300
 CENA_SPRIEVOD_POLHODINA = 50
-CENA_STOLY_HODINA = 120  # Opravené na 120 € / hodina
-CENA_APARATURA = 100     # Príplatok za ozvučenie, mixpult a mikrofóny (bez prívlastku bezdrôtové)
-CENA_ZA_KM = 0.50        # 0.50 € za km (zahŕňa cestu tam aj späť)
+CENA_STOLY_HODINA = 120  # Zachovaná upravená cena 120 €
+CENA_APARATURA = 100     
+CENA_ZA_KM = 0.50        
 
 # --- DIZAJN ---
 def apply_style():
     st.markdown(f"""
         <style>
-        /* Pozadie aplikácie */
         .stApp {{
             background: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), 
                         url("{KAPELA_FOTO_URL}");
@@ -36,14 +35,12 @@ def apply_style():
             color: #ffffff;
         }}
         
-        /* ÚPLNÉ SKRYTIE BOČNÉHO PANELU A ŠÍPKY */
         [data-testid="collapsedSidebarNoOverlay"], 
         [data-testid="stSidebar"], 
         button[data-testid="stSidebarCollapseButton"] {{
             display: none !important;
         }}
         
-        /* Nadpisy */
         h1, h2, h3, h4 {{ color: #d4af37 !important; font-family: 'Playfair Display', serif; text-shadow: 4px 4px 8px #000000; text-align: center; }}
         
         .info-box {{
@@ -55,7 +52,6 @@ def apply_style():
             margin: 10px 0;
         }}
 
-        /* Box pre cenník */
         .cennik-container {{
             background: rgba(0, 0, 0, 0.85);
             border: 2px solid #d4af37;
@@ -65,7 +61,6 @@ def apply_style():
             margin-bottom: 25px;
         }}
 
-        /* Zlatý box pre výsledok kalkulačky */
         .kalkulacka-box {{
             background: rgba(212, 175, 55, 0.25);
             border: 2px dashed #d4af37;
@@ -79,7 +74,6 @@ def apply_style():
         .stForm {{ background-color: rgba(0, 0, 0, 0.8) !important; border: 2px solid #d4af37 !important; border-radius: 20px; padding: 30px; }}
         .stButton>button {{ background-color: #d4af37 !important; color: black !important; border-radius: 12px !important; font-weight: bold !important; width: 100%; transition: 0.3s; }}
         
-        /* Štýl pre zobrazenie detailov v admini */
         .admin-detail-box {{
             background-color: rgba(0, 100, 255, 0.15);
             border-left: 5px solid #0064ff;
@@ -89,7 +83,6 @@ def apply_style():
             font-size: 0.95rem;
         }}
 
-        /* --- ŠTÝLOVANIE HORNÉHO MENU --- */
         div[data-testid="stRadio"] {{
             background: transparent !important;
             padding: 10px 0 !important;
@@ -101,11 +94,9 @@ def apply_style():
             flex-wrap: wrap !important;
             gap: 12px !important;
         }}
-        /* Skrytie guličiek */
         div[data-testid="stRadio"] div[role="radiogroup"] > label > div:first-child {{
             display: none !important;
         }}
-        /* Tlačidlá menu */
         div[data-testid="stRadio"] div[role="radiogroup"] > label {{
             background-color: rgba(0, 0, 0, 0.75) !important;
             border: 2px solid #d4af37 !important;
@@ -119,13 +110,11 @@ def apply_style():
             box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
             min-width: 140px !important;
         }}
-        /* Hover efekt */
         div[data-testid="stRadio"] div[role="radiogroup"] > label:hover {{
             background-color: rgba(212, 175, 55, 0.25) !important;
             transform: translateY(-2px) !important;
             box-shadow: 0 6px 15px rgba(212, 175, 55, 0.3) !important;
         }}
-        /* Aktívne menu */
         div[data-testid="stRadio"] div[role="radiogroup"] > label[data-checked="true"] {{
             background-color: #d4af37 !important;
             color: #000000 !important;
@@ -145,14 +134,13 @@ def nacti_data():
 def uloz_data(data):
     with open(DB_FILE, "w") as f: json.dump(data, f, indent=4)
 
-# VYLEPŠENÁ FUNKCIA S VÝPISOM CHYBY PRE JEDNODUCHÚ DIAGNOSTIKU
+# ZACHOVÁVAME DETEKCIU CHÝB, ABY SME MALI ISTOTU
 def posli_upozornenie(text):
     try:
         pb = Pushbullet(PB_API_KEY)
         pb.push_note("🎸 NOVÝ DOPYT", text)
         return True
     except Exception as e:
-        # Vypíše presnú príčinu zlyhania priamo červeným boxom v aplikácii
         st.error(f"⚠️ Pushbullet neodoslal správu! Chyba: {e}")
         return False
 
@@ -160,7 +148,6 @@ def posli_upozornenie(text):
 st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎻", layout="centered")
 apply_style()
 
-# MODERNÉ HORNÉ NAVIGAČNÉ MENU (Rezervácia, Cenník, Galéria, Admin)
 menu = st.radio(
     "NAVIGÁCIA", 
     ["🎸 Rezervácia", "💰 Cenník", "📸 Galéria", "🔐 Administrácia"], 
@@ -170,22 +157,19 @@ menu = st.radio(
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- 1. REZERVÁCIA (S kalkulačkou a aparatúrou) ---
+# --- 1. REZERVÁCIA ---
 if menu == "🎸 Rezervácia":
     st.title("🎻 Rezervácia vystúpenia")
     st.markdown('<div class="info-box">🪗 Akordeón | 🎻 Husle | 🥁 Bubon | 🎷 Saxofón</div>', unsafe_allow_html=True)
     
-    # --- INTERAKTÍVNA KALKULAČKA (MIMO FORMULÁRA) ---
     st.markdown("<h4 style='text-align: center; margin-bottom: 5px; margin-top: 20px;'>Výpočet ceny vystúpenia</h4>", unsafe_allow_html=True)
     
-    # Výber typu akcie
     typ_akcie = st.selectbox(
         "Vyberte typ vystúpenia:",
         ["🎂 Rodinná oslava / Jubileum", "👰 Svadobný sprievod a odobierka", "🍻 Hranie pomedzi stoly / Posedenie"]
     )
     
     col_vstupy, col_km = st.columns(2)
-    
     cena_hudba = 0
     popis_hudby = ""
     
@@ -195,7 +179,7 @@ if menu == "🎸 Rezervácia":
             cena_hudba = hodiny * CENA_OSLAVA_HODINA
             popis_hudby = f"Rodinná oslava ({hodiny} hod.)"
             
-        elif typ_akcie == "👰 Svadobný sprievod and odobierka":
+        elif typ_akcie == "👰 Svadobný sprievod a odobierka":
             st.info("Základná cena zahŕňa sprievod do 2 hodín (akusticky).")
             polhodiny_navyse = st.slider("Čas navyše (počet začatých polhodín)", min_value=0, max_value=10, value=0, key="extra_sprievod")
             cena_hudba = CENA_SPRIEVOD_ZAKLAD + (polhodiny_navyse * CENA_SPRIEVOD_POLHODINA)
@@ -212,25 +196,21 @@ if menu == "🎸 Rezervácia":
     with col_km:
         km = st.slider("Vzdialenosť z obce Ovčie (v km jednosmerne)", min_value=0, max_value=300, value=0, step=5, key="calc_km")
     
-    # ZAŠKRTÁVACIE POLÍČKO PRE APARATÚRU (bez slova "bezdrôtové")
     potrebuje_aparaturu = st.checkbox(
         f"Zabezpečiť zvukovú aparatúru (aktívne reprobedne, mixpult, mikrofóny) (+{CENA_APARATURA} €)",
         value=False,
         help="Zvoľte, ak sa akcia koná vo väčšej sále alebo vonku a je potrebné, aby sme boli ozvučení."
     )
     
-    # Výpočet dopravy a celkovej ceny
     cena_doprava = km * 2 * CENA_ZA_KM
     prplatok_aparatura = CENA_APARATURA if potrebuje_aparaturu else 0
     celkova_cena = cena_hudba + cena_doprava + prplatok_aparatura
     
-    # Formátovanie popisu pre prehľadnosť
     detaily_vypoctu = f"{popis_hudby}: {cena_hudba:.2f} €"
     if potrebuje_aparaturu:
         detaily_vypoctu += f" | Ozvučenie: {CENA_APARATURA:.2f} €"
     detaily_vypoctu += f" | Doprava {km*2} km celkovo: {cena_doprava:.2f} €"
     
-    # Zobrazenie ceny v reálnom čase
     st.markdown(f"""
         <div class="kalkulacka-box">
             <span style="font-size: 1.1rem; color: #ccc;">Odhadovaná cena vystúpenia:</span><br>
@@ -239,7 +219,6 @@ if menu == "🎸 Rezervácia":
         </div>
     """, unsafe_allow_html=True)
     
-    # --- SAMOTNÝ REZERVAČNÝ FORMULÁR ---
     with st.form("main_booking"):
         st.subheader("📩 Rezervačný dopyt")
         
@@ -249,7 +228,6 @@ if menu == "🎸 Rezervácia":
         with col2: 
             cas = st.time_input("Čas začiatku")
             
-        # OSOBNÉ ÚDAJE
         meno = st.text_input("Meno a priezvisko")
         tel = st.text_input("Telefónne číslo")
         email = st.text_input("E-mail")
@@ -280,7 +258,7 @@ if menu == "🎸 Rezervácia":
                 posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nTyp: {typ_akcie} ({txt_aparatury})\nMiesto: {mesto_detaily}\nCena: {vypocitana_cena_txt}")
                 st.balloons(); st.success("Odoslané! Ozveme sa vám. ✅")
 
-# --- 2. PODROBNÝ CENNÍK (Upravená cena za stoly na 120 €) ---
+# --- 2. PODROBNÝ CENNÍK ---
 elif menu == "💰 Cenník":
     st.title("💰 Cenník služieb")
     
@@ -320,12 +298,8 @@ elif menu == "💰 Cenník":
                 </tr>
             </table>
             <div style="padding: 20px; text-align: center; color: #aaa; font-size: 0.85rem;">
-                * Ceny sú konečné pre celú našu 5-člennú zostavu (akordeóny, husle, saxofón, bubon).
+                * Ceny sú konečné pre celú našu 5-člennú zostavu.
             </div>
-        </div>
-        <div style="text-align: center; margin-top: 20px;">
-            <p style="font-size: 1.1rem; color: #ccc;">Chcete si presne vypočítať cenu pre vaše podujatie?</p>
-            <p>Prejdite hore na záložku <b>🎸 Rezervácia</b>, kde si zvolíte typ akcie a kalkulačka vám hneď napočíta presnú cenu.</p>
         </div>
     """, unsafe_allow_html=True)
 
@@ -378,7 +352,6 @@ else:
                     st.write(f"📞 **Kontakt:** {a.get('tel', '---')} | 📧 {a.get('email', '---')}")
                     st.write(f"🕒 **Čas:** {a.get('cas', '---')}")
                     st.write(f"💰 **Vypočítaná cena na webe:** {kalkulacia}")
-                    
                     st.markdown(f"""<div class="admin-detail-box"><b>Miesto a detaily:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
                     
                     c1, c2, c3 = st.columns(3)
@@ -433,7 +406,6 @@ else:
                 with st.expander(f"📅 {a['datum']} - {a.get('meno', 'Akcia')}"):
                     st.write(f"📞 {a.get('tel', '')} | 🕒 {a.get('cas', '')}")
                     st.write(f"💰 **Orientačná kalkulácia:** {kalkulacia}")
-                    
                     st.markdown(f"""<div class="admin-detail-box"><b>Miesto/Poznámka:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
                     
                     c1, c2 = st.columns(2)
