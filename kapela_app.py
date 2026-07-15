@@ -18,6 +18,7 @@ CENA_OSLAVA_HODINA = 130
 CENA_SPRIEVOD_ZAKLAD = 300
 CENA_SPRIEVOD_POLHODINA = 50
 CENA_STOLY_HODINA = 150
+CENA_APARATURA = 100  # Príplatok za ozvučenie, mixpult a mikrofóny
 CENA_ZA_KM = 0.50     # 0.50 € za km (zahŕňa cestu tam aj späť)
 
 # --- DIZAJN ---
@@ -165,7 +166,7 @@ menu = st.radio(
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- 1. REZERVÁCIA (S kalkulačkou podla typu akcie) ---
+# --- 1. REZERVÁCIA (S kalkulačkou a aparatúrou) ---
 if menu == "🎸 Rezervácia":
     st.title("🎻 Rezervácia vystúpenia")
     st.markdown('<div class="info-box">🪗 Akordeón | 🎻 Husle | 🥁 Bubon | 🎷 Saxofón</div>', unsafe_allow_html=True)
@@ -191,7 +192,7 @@ if menu == "🎸 Rezervácia":
             popis_hudby = f"Rodinná oslava ({hodiny} hod.)"
             
         elif typ_akcie == "👰 Svadobný sprievod a odobierka":
-            st.info("Základná cena zahŕňa sprievod do 2 hodín.")
+            st.info("Základná cena zahŕňa sprievod do 2 hodín (akusticky).")
             polhodiny_navyse = st.slider("Čas navyše (počet začatých polhodín)", min_value=0, max_value=10, value=0, key="extra_sprievod")
             cena_hudba = CENA_SPRIEVOD_ZAKLAD + (polhodiny_navyse * CENA_SPRIEVOD_POLHODINA)
             if polhodiny_navyse > 0:
@@ -207,16 +208,30 @@ if menu == "🎸 Rezervácia":
     with col_km:
         km = st.slider("Vzdialenosť z obce Ovčie (v km jednosmerne)", min_value=0, max_value=300, value=0, step=5, key="calc_km")
     
+    # ZAŠKRTÁVACIE POLÍČKO PRE APARATÚRU
+    potrebuje_aparaturu = st.checkbox(
+        f"Zabezpečiť zvukovú aparatúru (aktívne reprobedne, mixpult, mikrofóny) (+{CENA_APARATURA} €)",
+        value=False,
+        help="Zvoľte, ak sa akcia koná vo väčšej sále alebo vonku a je potrebné, aby sme boli ozvučení."
+    )
+    
     # Výpočet dopravy a celkovej ceny
     cena_doprava = km * 2 * CENA_ZA_KM
-    celkova_cena = cena_hudba + cena_doprava
+    prplatok_aparatura = CENA_APARATURA if potrebuje_aparaturu else 0
+    celkova_cena = cena_hudba + cena_doprava + prplatok_aparatura
+    
+    # Formátovanie popisu pre prehľadnosť
+    detaily_vypoctu = f"{popis_hudby}: {cena_hudba:.2f} €"
+    if potrebuje_aparaturu:
+        detaily_vypoctu += f" | Ozvučenie: {CENA_APARATURA:.2f} €"
+    detaily_vypoctu += f" | Doprava {km*2} km celkovo: {cena_doprava:.2f} €"
     
     # Zobrazenie ceny v reálnom čase
     st.markdown(f"""
         <div class="kalkulacka-box">
             <span style="font-size: 1.1rem; color: #ccc;">Odhadovaná cena vystúpenia:</span><br>
             <span style="font-size: 2.2rem; font-weight: bold; color: #d4af37;">{celkova_cena:.2f} €</span><br>
-            <small style="color: #aaa;">({popis_hudby}: {cena_hudba:.2f} € | Doprava {km*2} km celkovo: {cena_doprava:.2f} €)</small>
+            <small style="color: #aaa;">({detaily_vypoctu})</small>
         </div>
     """, unsafe_allow_html=True)
     
@@ -243,7 +258,9 @@ if menu == "🎸 Rezervácia":
             elif not meno or not tel:
                 st.warning("Vyplňte, prosím, vaše meno a telefónne číslo.")
             else:
-                vypocitana_cena_txt = f"{celkova_cena:.2f} € ({popis_hudby}, {km} km jednosmerne)"
+                txt_aparatury = "S APARATÚROU" if potrebuje_aparaturu else "BEZ aparatúry"
+                vypocitana_cena_txt = f"{celkova_cena:.2f} € ({popis_hudby}, {txt_aparatury}, {km} km jednosmerne)"
+                
                 nova = {
                     "id": str(datetime.now().timestamp()), 
                     "datum": str(datum), 
@@ -251,12 +268,12 @@ if menu == "🎸 Rezervácia":
                     "meno": meno, 
                     "tel": tel, 
                     "email": email, 
-                    "detaily": f"[{typ_akcie}] {mesto_detaily}", 
+                    "detaily": f"[{typ_akcie}] [Ozvučenie: {txt_aparatury}] {mesto_detaily}", 
                     "vypocitana_cena": vypocitana_cena_txt,  
                     "stav": "cakajuce"
                 }
                 db.append(nova); uloz_data(db)
-                posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nTyp: {typ_akcie}\nMiesto: {mesto_detaily}\nCena: {vypocitana_cena_txt}")
+                posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nTyp: {typ_akcie} ({txt_aparatury})\nMiesto: {mesto_detaily}\nCena: {vypocitana_cena_txt}")
                 st.balloons(); st.success("Odoslané! Ozveme sa vám. ✅")
 
 # --- 2. PODROBNÝ CENNÍK ---
@@ -275,7 +292,7 @@ elif menu == "💰 Cenník":
                 <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
                     <td style="padding: 12px; font-weight: bold;">🎂 Rodinná oslava / Jubileum</td>
                     <td style="padding: 12px; color: #d4af37; font-weight: bold;">130 € / hodina</td>
-                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Hranie na oslavách, narodeninách, tancovačky.</td>
+                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Živé hranie na oslavách, narodeninách, jubileách.</td>
                 </tr>
                 <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
                     <td style="padding: 12px; font-weight: bold;">👰 Svadobný sprievod a odobierka</td>
@@ -285,7 +302,12 @@ elif menu == "💰 Cenník":
                 <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
                     <td style="padding: 12px; font-weight: bold;">🍻 Hranie pomedzi stoly / Posedenie</td>
                     <td style="padding: 12px; color: #d4af37; font-weight: bold;">150 € / hodina</td>
-                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Komorné akustické hranie priamo medzi hosťami.</td>
+                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Komorné akustické hranie naživo priamo medzi hosťami.</td>
+                </tr>
+                <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
+                    <td style="padding: 12px; font-weight: bold;">🎤 Profesionálna zvuková aparatúra</td>
+                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">+{CENA_APARATURA} € jednorazovo</td>
+                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Aktívne reprobedne, mixpult a bezdrôtové mikrofóny (pre väčšie sály/vonku).</td>
                 </tr>
                 <tr>
                     <td style="padding: 12px; font-weight: bold;">🚗 Doprava (z obce Ovčie)</td>
