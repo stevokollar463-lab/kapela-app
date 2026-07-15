@@ -13,7 +13,7 @@ LOGIN_HESLO = "OvcanskeParobci123"
 # HLAVNÁ FOTKA POZADIA
 KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg" 
 
-# --- NASTAVENIE CIEN (Podľa tvojho zadania) ---
+# --- NASTAVENIE CIEN ---
 CENA_ZA_HODINU = 130  # 130 € za hodinu hrania
 CENA_ZA_KM = 0.50     # 0.50 € za km (zahŕňa cestu tam aj späť)
 
@@ -177,14 +177,15 @@ if menu == "🎸 Rezervácia":
         with col2: 
             cas = st.time_input("Čas začiatku")
             
-        # --- KALKULAČKA PRIAMO VO FORMULÁRI ---
+        # --- KALKULAČKA PRIAMO VO FORMULÁRI (BEZ NUTNOSTI ENTERU) ---
         st.markdown("---")
         st.markdown("<h4 style='text-align: left; margin-bottom: 10px;'>🧮 Výpočet ceny na vašu akciu</h4>", unsafe_allow_html=True)
         col_hours, col_km = st.columns(2)
         with col_hours:
             hodiny = st.slider("Predpokladaná dĺžka hrania (v hodinách)", min_value=1, max_value=12, value=5)
         with col_km:
-            km = st.number_input("Približná vzdialenosť z obce Ovčie (km v jednom smere)", min_value=0, value=0, step=5)
+            # Zmenené na posuvník, aby sa cena prepočítala OKAMŽITE pri ťahaní a bez ENTERU
+            km = st.slider("Vzdialenosť z obce Ovčie (v km jednosmerne)", min_value=0, max_value=300, value=0, step=5)
         
         # Výpočet ceny
         cena_hudba = hodiny * CENA_ZA_HODINU
