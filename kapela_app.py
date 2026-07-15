@@ -132,50 +132,13 @@ def apply_style():
             box-shadow: 0 4px 10px rgba(0,0,0,0.4) !important;
             border: none !important;
         }}
-        
-        /* Mobilné prispôsobenie pre horné tlačidlá (NAVIGÁCIA) */
+
+        /* Bezpečné a stabilné zobrazenie navigácie pre mobily aj PC (bez React chýb) */
         div[data-testid="stRadio"] {{
-            background: transparent !important;
-            padding: 5px 0 !important;
-        }}
-        div[data-testid="stRadio"] > div[role="radiogroup"] {{
-            display: flex !important;
-            flex-direction: row !important;
-            justify-content: center !important;
-            flex-wrap: wrap !important;
-            gap: 8px !important;
-        }}
-        div[data-testid="stRadio"] div[role="radiogroup"] > label > div:first-child {{
-            display: none !important;
-        }}
-        div[data-testid="stRadio"] div[role="radiogroup"] > label {{
-            background-color: rgba(0, 0, 0, 0.9) !important;
-            border: 2px solid #d4af37 !important;
-            color: #ffffff !important;
-            padding: 8px 16px !important;
-            border-radius: 20px !important;
-            cursor: pointer !important;
-            transition: all 0.2s ease !important;
-            font-weight: bold !important;
-            text-align: center !important;
-            box-shadow: 0 4px 8px rgba(0,0,0,0.6) !important;
-            font-size: 0.85rem !important;
-            flex-grow: 1;
-            max-width: 45%; /* Na mobile sa zoradia pekne 2 a 2 vedľa seba */
-        }}
-        @media (min-width: 600px) {{
-            div[data-testid="stRadio"] div[role="radiogroup"] > label {{
-                max-width: unset !important;
-                font-size: 0.95rem !important;
-            }}
-        }}
-        div[data-testid="stRadio"] div[role="radiogroup"] > label:hover {{
-            background-color: rgba(212, 175, 55, 0.25) !important;
-        }}
-        div[data-testid="stRadio"] div[role="radiogroup"] > label[data-checked="true"] {{
-            background-color: #d4af37 !important;
-            color: #000000 !important;
-            border-color: #ffffff !important;
+            background: rgba(0, 0, 0, 0.8) !important;
+            padding: 10px !important;
+            border-radius: 15px !important;
+            border: 1px solid #d4af37 !important;
         }}
         </style>
     """, unsafe_allow_html=True)
@@ -203,11 +166,11 @@ def posli_upozornenie(text):
 st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎻", layout="centered")
 apply_style()
 
+# Klasický bezpečný horizontal radio, ktorý už nebude spôsobovať React slučky
 menu = st.radio(
     "NAVIGÁCIA", 
     ["🎸 Rezervácia", "💰 Cenník", "📸 Galéria", "🔐 Administrácia"], 
-    horizontal=True,
-    label_visibility="collapsed"
+    horizontal=True
 )
 
 st.markdown("<br>", unsafe_allow_html=True)
