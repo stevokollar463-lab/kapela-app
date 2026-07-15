@@ -134,23 +134,58 @@ else:
         with t1:
             cakajuce = [a for a in db if a.get("stav") == "cakajuce"]
             for i, a in enumerate(cakajuce):
-                # OŠETRENIE STARÝCH DÁT: Ak nemá pole 'detaily', skús 'poznamka'
                 info_mesto = a.get('detaily', a.get('poznamka', 'Neuvedené'))
                 with st.expander(f"DOPYT: {a['datum']} - {a.get('meno', 'Neznámy')}"):
                     st.write(f"📞 **Kontakt:** {a.get('tel', '---')} | 📧 {a.get('email', '---')}")
                     st.write(f"🕒 **Čas:** {a.get('cas', '---')}")
                     
-                    # TOTO JE TEN BOX S DETAILAMI
                     st.markdown(f"""<div class="admin-detail-box"><b>Miesto a detaily:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
                     
-                    c1, c2 = st.columns(2)
+                    # Tlačidlá akcií
+                    c1, c2, c3 = st.columns(3)
                     if c1.button("✅ Schváliť", key=f"ok{i}"):
                         for item in db:
                             if item['id'] == a['id']: item['stav'] = "schvalene"
                         uloz_data(db); st.rerun()
+                    
                     if c2.button("🗑️ Zmazať", key=f"no{i}"):
                         db = [item for item in db if item['id'] != a['id']]
                         uloz_data(db); st.rerun()
+                        
+                    # Inicializácia stavu pre editáciu
+                    edit_key = f"edit_active_t1_{a['id']}"
+                    if edit_key not in st.session_state:
+                        st.session_state[edit_key] = False
+                        
+                    if c3.button("✍️ Upraviť", key=f"btn_edit_t1_{i}"):
+                        st.session_state[edit_key] = not st.session_state[edit_key]
+                        st.rerun()
+                    
+                    # Formulár na úpravu údajov
+                    if st.session_state[edit_key]:
+                        st.markdown("---")
+                        st.subheader("✏️ Upraviť dopyt")
+                        with st.form(key=f"form_edit_t1_{a['id']}"):
+                            novy_datum = st.text_input("Dátum", value=a.get('datum', ''))
+                            novy_cas = st.text_input("Čas", value=a.get('cas', ''))
+                            nove_meno = st.text_input("Meno", value=a.get('meno', ''))
+                            novy_tel = st.text_input("Telefón", value=a.get('tel', ''))
+                            novy_email = st.text_input("E-mail", value=a.get('email', ''))
+                            nove_detaily = st.text_area("Miesto/Poznámka", value=info_mesto)
+                            
+                            if st.form_submit_button("Uložiť zmeny"):
+                                for item in db:
+                                    if item['id'] == a['id']:
+                                        item['datum'] = novy_datum
+                                        item['cas'] = novy_cas
+                                        item['meno'] = nove_meno
+                                        item['tel'] = novy_tel
+                                        item['email'] = novy_email
+                                        item['detaily'] = nove_detaily
+                                uloz_data(db)
+                                st.session_state[edit_key] = False
+                                st.success("Zmeny boli uložené!")
+                                st.rerun()
         
         with t2:
             schvalene = [a for a in db if a.get("stav") == "schvalene" or "stav" not in a]
@@ -160,12 +195,47 @@ else:
                 with st.expander(f"📅 {a['datum']} - {a.get('meno', 'Akcia')}"):
                     st.write(f"📞 {a.get('tel', '')} | 🕒 {a.get('cas', '')}")
                     
-                    # ZOBRAZENIE DETAILOV AJ V KALENDÁRI
                     st.markdown(f"""<div class="admin-detail-box"><b>Miesto/Poznámka:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
                     
-                    if st.button("🗑️ Odstrániť", key=f"del{i}"):
+                    c1, c2 = st.columns(2)
+                    if c1.button("🗑️ Odstrániť", key=f"del{i}"):
                         db = [item for item in db if item['id'] != a['id']]
                         uloz_data(db); st.rerun()
+                    
+                    # Inicializácia stavu pre editáciu v kalendári
+                    edit_key_t2 = f"edit_active_t2_{a['id']}"
+                    if edit_key_t2 not in st.session_state:
+                        st.session_state[edit_key_t2] = False
+                        
+                    if c2.button("✍️ Upraviť", key=f"btn_edit_t2_{i}"):
+                        st.session_state[edit_key_t2] = not st.session_state[edit_key_t2]
+                        st.rerun()
+                    
+                    # Formulár na úpravu údajov
+                    if st.session_state[edit_key_t2]:
+                        st.markdown("---")
+                        st.subheader("✏️ Upraviť akciu")
+                        with st.form(key=f"form_edit_t2_{a['id']}"):
+                            novy_datum = st.text_input("Dátum", value=a.get('datum', ''))
+                            novy_cas = st.text_input("Čas", value=a.get('cas', ''))
+                            nove_meno = st.text_input("Meno / Názov", value=a.get('meno', ''))
+                            novy_tel = st.text_input("Telefón", value=a.get('tel', ''))
+                            novy_email = st.text_input("E-mail", value=a.get('email', ''))
+                            nove_detaily = st.text_area("Miesto/Poznámka", value=info_mesto)
+                            
+                            if st.form_submit_button("Uložiť zmeny"):
+                                for item in db:
+                                    if item['id'] == a['id']:
+                                        item['datum'] = novy_datum
+                                        item['cas'] = novy_cas
+                                        item['meno'] = nove_meno
+                                        item['tel'] = novy_tel
+                                        item['email'] = novy_email
+                                        item['detaily'] = nove_detaily
+                                uloz_data(db)
+                                st.session_state[edit_key_t2] = False
+                                st.success("Zmeny boli uložené!")
+                                st.rerun()
         
         with t3:
             with st.form("add_manual"):
@@ -173,6 +243,7 @@ else:
                 if st.form_submit_button("Uložiť"):
                     db.append({"id": str(datetime.now().timestamp()), "datum": str(d), "meno": m, "detaily": det, "stav": "schvalene"})
                     uloz_data(db); st.success("OK"); st.rerun()
+
 st.markdown(f'''
 <div style="text-align:center; margin-top:50px; color:#ccc; line-height: 1.6;">
     <b>Podpora</b><br>
