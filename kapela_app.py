@@ -173,5 +173,10 @@ else:
                 if st.form_submit_button("Uložiť"):
                     db.append({"id": str(datetime.now().timestamp()), "datum": str(d), "meno": m, "detaily": det, "stav": "schvalene"})
                     uloz_data(db); st.success("OK"); st.rerun()
-
-st.markdown(f'<div style="text-align:center; margin-top:50px; color:#ccc;"><b>Podpora:</b> 0944 757 122</div>', unsafe_allow_html=True)
+st.markdown(f'''
+<div style="text-align:center; margin-top:50px; color:#ccc; line-height: 1.6;">
+    <b>Podpora</b><br>
+    <b>Tel. číslo:</b> 0944 757 122<br>
+    <b>E-mail:</b> kollarstevo55@gmail.com
+</div>
+''', unsafe_allow_html=True)
