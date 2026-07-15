@@ -15,6 +15,7 @@ KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg"
 
 # --- DIZAJN ---
 def apply_style():
+    # 1. Klasické CSS pre pozadie, formuláre a novú animovanú triedu
     st.markdown(f"""
         <style>
         .stApp {{
@@ -51,37 +52,28 @@ def apply_style():
             font-size: 0.95rem;
         }}
 
-        /* --- AGRESÍVNESTIE CIEĽOVANIE PRE ŠÍPKU MENU (VĽAVO HORE) --- */
-        button[data-testid="stSidebarCollapseButton"],
-        button[aria-label="Expand sidebar"],
-        button[aria-label="Collapse sidebar"],
-        div[data-testid="collapsedSidebar"] button,
-        .st-emotion-cache-19p059r, 
-        .st-emotion-cache-16idsys {{
+        /* --- ŠTÝL PRE ZLATÉ PULZUJÚCE TLAČIDLO ŠÍPKY --- */
+        .zlate-menu-tlacidlo {{
             background-color: #d4af37 !important;
             color: #000000 !important;
             border-radius: 10px !important;
+            border: 2px solid #ffffff !important;
+            box-shadow: 0 0 15px #d4af37 !important;
             animation: bouncePulse 2s infinite !important;
-            box-shadow: 0 0 12px #d4af37 !important;
-            border: 1px solid #ffffff !important;
             width: 45px !important;
             height: 45px !important;
             display: flex !important;
             align-items: center !important;
             justify-content: center !important;
+            cursor: pointer !important;
+            transition: 0.3s !important;
         }}
-        
-        /* Zvýraznenie ikonky šípky vo vnútri tlačidla */
-        button[data-testid="stSidebarCollapseButton"] svg,
-        button[aria-label="Expand sidebar"] svg,
-        button[aria-label="Collapse sidebar"] svg,
-        div[data-testid="collapsedSidebar"] button svg,
-        .st-emotion-cache-19p059r svg,
-        .st-emotion-cache-16idsys svg {{
+
+        .zlate-menu-tlacidlo svg {{
             color: #000000 !important;
             fill: #000000 !important;
-            width: 24px !important;
-            height: 24px !important;
+            width: 26px !important;
+            height: 26px !important;
         }}
 
         @keyframes bouncePulse {{
@@ -90,11 +82,35 @@ def apply_style():
                 box-shadow: 0 0 8px #d4af37;
             }}
             50% {{
-                transform: scale(1.15) translateX(5px);
+                transform: scale(1.18) translateX(6px);
                 box-shadow: 0 0 20px #d4af37, 0 0 30px #d4af37;
             }}
         }}
         </style>
+    """, unsafe_allow_html=True)
+
+    # 2. JavaScript, ktorý nájde šípku na webe a aplikuje na ňu zlatý štýl (beží každých 0.5s pre prípad preklikávania)
+    st.markdown("""
+        <script>
+        const upravTlacidloMenu = () => {
+            const cieloveDokumenty = [document, parent.document];
+            cieloveDokumenty.forEach(doc => {
+                try {
+                    // Nájdeme tlačidlá, ktoré Streamlit používa na otváranie/zatváranie sidebar-u
+                    const tlacidla = doc.querySelectorAll('button[data-testid="stSidebarCollapseButton"], button[aria-label="Expand sidebar"], button[aria-label="Collapse sidebar"]');
+                    tlacidla.forEach(btn => {
+                        if (!btn.classList.contains('zlate-menu-tlacidlo')) {
+                            btn.classList.add('zlate-menu-tlacidlo');
+                        }
+                    });
+                } catch(e) {
+                    // Ignorujeme prípadné bezpečnostné chyby prístupu do parent.document
+                }
+            });
+        };
+        // Spúšťame opakovane, aby sa tlačidlo preafarbilo aj po načítaní/zmene sekcie
+        setInterval(upravTlacidloMenu, 500);
+        </script>
     """, unsafe_allow_html=True)
 
 # --- FUNKCIE ---
