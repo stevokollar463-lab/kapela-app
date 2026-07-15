@@ -51,23 +51,37 @@ def apply_style():
             font-size: 0.95rem;
         }}
 
-        /* --- ANIMÁCIA PRE ŠÍPKU MENU (VĽAVO HORE) --- */
-        div[data-testid="collapsedSidebar"] button,
+        /* --- AGRESÍVNESTIE CIEĽOVANIE PRE ŠÍPKU MENU (VĽAVO HORE) --- */
         button[data-testid="stSidebarCollapseButton"],
-        button[aria-label="Expand sidebar"] {{
+        button[aria-label="Expand sidebar"],
+        button[aria-label="Collapse sidebar"],
+        div[data-testid="collapsedSidebar"] button,
+        .st-emotion-cache-19p059r, 
+        .st-emotion-cache-16idsys {{
             background-color: #d4af37 !important;
             color: #000000 !important;
-            border-radius: 8px !important;
+            border-radius: 10px !important;
             animation: bouncePulse 2s infinite !important;
-            box-shadow: 0 0 10px #d4af37 !important;
+            box-shadow: 0 0 12px #d4af37 !important;
             border: 1px solid #ffffff !important;
-            transition: 0.3s;
+            width: 45px !important;
+            height: 45px !important;
+            display: flex !important;
+            align-items: center !important;
+            justify-content: center !important;
         }}
         
+        /* Zvýraznenie ikonky šípky vo vnútri tlačidla */
+        button[data-testid="stSidebarCollapseButton"] svg,
+        button[aria-label="Expand sidebar"] svg,
+        button[aria-label="Collapse sidebar"] svg,
         div[data-testid="collapsedSidebar"] button svg,
-        button[data-testid="stSidebarCollapseButton"] svg {{
+        .st-emotion-cache-19p059r svg,
+        .st-emotion-cache-16idsys svg {{
             color: #000000 !important;
             fill: #000000 !important;
+            width: 24px !important;
+            height: 24px !important;
         }}
 
         @keyframes bouncePulse {{
@@ -76,8 +90,8 @@ def apply_style():
                 box-shadow: 0 0 8px #d4af37;
             }}
             50% {{
-                transform: scale(1.18) translateX(6px);
-                box-shadow: 0 0 18px #d4af37, 0 0 25px #d4af37;
+                transform: scale(1.15) translateX(5px);
+                box-shadow: 0 0 20px #d4af37, 0 0 30px #d4af37;
             }}
         }}
         </style>
@@ -121,7 +135,7 @@ if menu == "🎸 Rezervácia":
         meno = st.text_input("Meno a priezvisko")
         tel = st.text_input("Telefónne číslo")
         email = st.text_input("E-mail")
-        mesto_detaily = st.text_area("Miesto konania and iné detaily")
+        mesto_detaily = st.text_area("Miesto konania a iné detaily")
         
         if st.form_submit_button("ODOSLAŤ REZERVÁCIU"):
             db = nacti_data()
