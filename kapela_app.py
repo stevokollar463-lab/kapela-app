@@ -6,7 +6,7 @@ from pushbullet import Pushbullet
 
 # --- KONFIGURÁCIA ---
 DB_FILE = "kalendar_kapely.json"
-PB_API_KEY = "o.Ir4LWAKm78pwEhpKkAf6WZY9uZPNCkSm"
+PB_API_KEY = "o.SvGGoFyViizWlRu5slbgVHJQI3bQnxDGo.SvGGoFyViizWlRu5slbgVHJQI3bQnxDG"
 LOGIN_MENO = "ovcanskeparobci"
 LOGIN_HESLO = "OvcanskeParobci123"
 
