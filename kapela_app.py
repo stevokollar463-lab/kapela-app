@@ -1,7 +1,7 @@
 import streamlit as st
 import json
 import os
-from datetime import datetime, time
+from datetime import datetime
 from pushbullet import Pushbullet
 
 # --- KONFIGURÁCIA ---
@@ -13,9 +13,9 @@ LOGIN_HESLO = "OvcanskeParobci123"
 # HLAVNÁ FOTKA POZADIA
 KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg" 
 
-# --- NASTAVENIE CIEN PRE KALKULAČKU ---
-CENA_ZA_HODINU = 150  # 150 € za hodinu hrania
-CENA_ZA_KM = 1.00     # 1.00 € za km (už počíta cestu tam aj späť)
+# --- NASTAVENIE CIEN (Podľa tvojho zadania) ---
+CENA_ZA_HODINU = 130  # 130 € za hodinu hrania
+CENA_ZA_KM = 0.50     # 0.50 € za km (zahŕňa cestu tam aj späť)
 
 # --- DIZAJN ---
 def apply_style():
@@ -51,7 +51,7 @@ def apply_style():
             margin: 10px 0;
         }}
 
-        /* Veľký zlatý box pre Cenník / Kalkulačku */
+        /* Box pre cenník */
         .cennik-container {{
             background: rgba(0, 0, 0, 0.85);
             border: 2px solid #d4af37;
@@ -59,15 +59,18 @@ def apply_style():
             border-radius: 20px;
             box-shadow: 0 0 25px rgba(212, 175, 55, 0.25);
             margin-bottom: 25px;
+            text-align: center;
         }}
 
-        .kalkulacka-vysledok {{
-            background: rgba(212, 175, 55, 0.2);
+        /* Zlatý box pre výsledok kalkulačky */
+        .kalkulacka-box {{
+            background: rgba(212, 175, 55, 0.25);
             border: 2px dashed #d4af37;
             padding: 20px;
             border-radius: 15px;
             text-align: center;
-            margin-top: 20px;
+            margin: 20px 0;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.20);
         }}
 
         .stForm {{ background-color: rgba(0, 0, 0, 0.8) !important; border: 2px solid #d4af37 !important; border-radius: 20px; padding: 30px; }}
@@ -150,64 +153,52 @@ def posli_upozornenie(text):
 st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎻", layout="centered")
 apply_style()
 
-# Inicializácia premenných pre prenos z Cenníka do Rezervácie
-if "pref_hodiny" not in st.session_state: st.session_state["pref_hodiny"] = 5
-if "pref_cena" not in st.session_state: st.session_state["pref_cena"] = "Nenapočítaná"
-if "pref_cas_od" not in st.session_state: st.session_state["pref_cas_od"] = time(18, 0)
-if "pref_cas_do" not in st.session_state: st.session_state["pref_cas_do"] = time(23, 0)
-if "pref_km" not in st.session_state: st.session_state["pref_km"] = 0
-if "aktivne_menu" not in st.session_state: st.session_state["aktivne_menu"] = "🎸 Rezervácia"
-
-# Pomocná funkcia na prepnutie menu
-def zmen_menu(nove_menu):
-    st.session_state["aktivne_menu"] = nove_menu
-
-# MODERNÉ HORNÉ NAVIGAČNÉ MENU (Pridaný Cenník)
-menu_moznosti = ["🎸 Rezervácia", "💰 Cenník", "📸 Galéria", "🔐 Administrácia"]
-zvolene_menu = st.radio(
+# MODERNÉ HORNÉ NAVIGAČNÉ MENU (Rezervácia, Cenník, Galéria, Admin)
+menu = st.radio(
     "NAVIGÁCIA", 
-    menu_moznosti, 
-    index=menu_moznosti.index(st.session_state["aktivne_menu"]),
+    ["🎸 Rezervácia", "💰 Cenník", "📸 Galéria", "🔐 Administrácia"], 
     horizontal=True,
-    label_visibility="collapsed",
-    key="navigation_radio"
+    label_visibility="collapsed"
 )
-
-# Ak užívateľ klikol priamo na menu, zosynchronizujeme stav
-if zvolene_menu != st.session_state["aktivne_menu"]:
-    st.session_state["aktivne_menu"] = zvolene_menu
-    st.rerun()
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- 1. REZERVÁCIA ---
-if st.session_state["aktivne_menu"] == "🎸 Rezervácia":
+# --- 1. REZERVÁCIA (Kalkulačka integrovaná priamo vo formulári) ---
+if menu == "🎸 Rezervácia":
     st.title("🎻 Rezervácia vystúpenia")
     st.markdown('<div class="info-box">🪗 Akordeón | 🎻 Husle | 🥁 Bubon | 🎷 Saxofón</div>', unsafe_allow_html=True)
     
     with st.form("main_booking"):
-        st.subheader("📩 Rezervačný formulár")
+        st.subheader("📩 Rezervačný dopyt")
         
         col1, col2 = st.columns(2)
         with col1: 
             datum = st.date_input("Dátum akcie", min_value=datetime.now())
         with col2: 
-            # Použijeme predvolený čas z kalkulačky, ak existuje
-            cas = st.time_input("Čas začiatku", value=st.session_state["pref_cas_od"])
+            cas = st.time_input("Čas začiatku")
             
+        # --- KALKULAČKA PRIAMO VO FORMULÁRI ---
         st.markdown("---")
+        st.markdown("<h4 style='text-align: left; margin-bottom: 10px;'>🧮 Výpočet ceny na vašu akciu</h4>", unsafe_allow_html=True)
+        col_hours, col_km = st.columns(2)
+        with col_hours:
+            hodiny = st.slider("Predpokladaná dĺžka hrania (v hodinách)", min_value=1, max_value=12, value=5)
+        with col_km:
+            km = st.number_input("Približná vzdialenosť z obce Ovčie (km v jednom smere)", min_value=0, value=0, step=5)
         
-        # Zobrazenie kalkulácie z cenníka, ak si ju užívateľ klikol
+        # Výpočet ceny
+        cena_hudba = hodiny * CENA_ZA_HODINU
+        cena_doprava = km * 2 * CENA_ZA_KM  # Cesta tam aj späť
+        celkova_cena = cena_hudba + cena_doprava
+        
         st.markdown(f"""
-            <div style="background: rgba(212, 175, 55, 0.1); border: 1px solid #d4af37; padding: 15px; border-radius: 10px; margin-bottom: 20px;">
-                <h5 style="color:#d4af37; margin:0 0 5px 0; text-align:left;">📊 Vybraná kalkulácia:</h5>
-                <p style="margin:0; font-size: 1.1rem;">
-                    <b>Cena spolu: {st.session_state["pref_cena"]}</b><br>
-                    <small style="color:#bbb;">Plánovaný čas: {st.session_state["pref_cas_od"].strftime('%H:%M')} do {st.session_state["pref_cas_do"].strftime('%H:%M')} ({st.session_state["pref_hodiny"]}h hrania) | Doprava: {st.session_state["pref_km"]} km</small>
-                </p>
-                <p style="margin: 8px 0 0 0; font-size: 0.85rem; color: #aaa;"><i>* Ak chcete cenu zmeniť alebo prepočítať, kliknite hore na záložku "💰 Cenník".</i></p>
+            <div class="kalkulacka-box">
+                <span style="font-size: 1.1rem; color: #ccc;">Odhadovaná cena vystúpenia:</span><br>
+                <span style="font-size: 2.2rem; font-weight: bold; color: #d4af37;">{celkova_cena:.2f} €</span><br>
+                <small style="color: #aaa;">(Hranie {hodiny} hod.: {cena_hudba:.2f} € | Doprava {km*2} km celkovo: {cena_doprava:.2f} €)</small>
             </div>
         """, unsafe_allow_html=True)
+        st.markdown("---")
         
         # --- OSOBNÉ ÚDAJE ---
         st.subheader("✍️ Vaše kontaktné údaje")
@@ -223,89 +214,45 @@ if st.session_state["aktivne_menu"] == "🎸 Rezervácia":
             elif not meno or not tel:
                 st.warning("Vyplňte, prosím, vaše meno a telefónne číslo.")
             else:
+                vypocitana_cena_txt = f"{celkova_cena:.2f} € ({hodiny} hod. hrania, {km} km jednosmerne)"
                 nova = {
                     "id": str(datetime.now().timestamp()), 
                     "datum": str(datum), 
-                    "cas": f"{cas.strftime('%H:%M')} (Hranie {st.session_state['pref_hodiny']}h)",
+                    "cas": f"{cas.strftime('%H:%M')}",
                     "meno": meno, 
                     "tel": tel, 
                     "email": email, 
                     "detaily": mesto_detaily, 
-                    "vypocitana_cena": f"{st.session_state['pref_cena']} ({st.session_state['pref_hodiny']}h, {st.session_state['pref_km']} km od Ovčieho)",
+                    "vypocitana_cena": vypocitana_cena_txt,  # Ukladá sa priamo do databázy
                     "stav": "cakajuce"
                 }
                 db.append(nova); uloz_data(db)
-                posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nČas: {cas.strftime('%H:%M')} ({st.session_state['pref_hodiny']}h)\nKalkulácia: {st.session_state['pref_cena']}")
-                st.balloons(); st.success("Odoslané! Ozveme sa vám hneď, ako to schválime. ✅")
+                posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nMiesto: {mesto_detaily}\nCena: {vypocitana_cena_txt}")
+                st.balloons(); st.success("Odoslané! Ozveme sa vám. ✅")
 
-# --- 2. CENNÍK & INTERAKTÍVNA KALKULAČKA ---
-elif st.session_state["aktivne_menu"] == "💰 Cenník":
-    st.title("💰 Cenník & Kalkulačka")
+# --- 2. ČISTO INFORMATÍVNY CENNÍK ---
+elif menu == "💰 Cenník":
+    st.title("💰 Cenník služieb")
     
     st.markdown(f"""
         <div class="cennik-container">
-            <h3 style="margin-top: 0;">Základné sadzby</h3>
-            <p style="font-size: 1.2rem; text-align: center; margin-bottom: 5px;">
+            <h3 style="margin-top: 0; color: #d4af37;">Naše sadzby</h3>
+            <p style="font-size: 1.3rem; margin-bottom: 15px;">
                 🎻 <b>Hranie na akcii:</b> <span style="color: #d4af37; font-weight: bold;">{CENA_ZA_HODINU} € / hodina</span>
             </p>
-            <p style="font-size: 1.2rem; text-align: center; margin-bottom: 0;">
-                🚗 <b>Doprava (z obce Ovčie):</b> <span style="color: #d4af37; font-weight: bold;">{CENA_ZA_KM:.2f} € / km</span> <small style="color:#aaa;">(zahŕňa cestu tam aj späť)</small>
+            <p style="font-size: 1.3rem; margin-bottom: 5px;">
+                🚗 <b>Doprava (z obce Ovčie):</b> <span style="color: #d4af37; font-weight: bold;">{CENA_ZA_KM:.2f} € / km</span>
             </p>
+            <small style="color:#aaa;">* Poplatok za dopravu zahŕňa kompletnú cestu tam aj späť.</small>
+        </div>
+        <div style="text-align: center; margin-top: 20px;">
+            <p style="font-size: 1.1rem; color: #ccc;">Chcete si presne vypočítať cenu pre vašu oslavu, svadbu alebo podujatie?</p>
+            <p>Prejdite hore na záložku <b>🎸 Rezervácia</b>, kde nájdete automatickú kalkulačku priamo vo formulári.</p>
         </div>
     """, unsafe_allow_html=True)
-    
-    st.subheader("🧮 Vypočítajte si cenu na vašu akciu")
-    
-    # Výber od-do pomocou výberových polí pre čas
-    col_od, col_do = st.columns(2)
-    with col_od:
-        cas_od = st.time_input("Čas od", value=st.session_state["pref_cas_od"], step=1800)
-    with col_do:
-        cas_do = st.time_input("Čas do", value=st.session_state["pref_cas_do"], step=1800)
-        
-    # Výpočet hodín na základe vybraných časov
-    datetime_od = datetime.combine(datetime.today(), cas_od)
-    datetime_do = datetime.combine(datetime.today(), cas_do)
-    
-    # Ak čas "do" prechádza cez polnoc
-    if datetime_do <= datetime_od:
-        datetime_do = datetime.combine(datetime.today() + datetime.timedelta(days=1), cas_do)
-        
-    rozdiel_sekundy = (datetime_do - datetime_od).total_seconds()
-    odhad_hodin = round(rozdiel_sekundy / 3600.0, 1)
-    
-    # Zadanie kilometrov
-    km = st.number_input("Vzdialenosť z obce Ovčie (km v jednom smere)", min_value=0, value=st.session_state["pref_km"], step=5)
-    
-    # Výpočty
-    cena_hudba = odhad_hodin * CENA_ZA_HODINU
-    cena_doprava = km * CENA_ZA_KM # Už berieme, že 1€ / km zahŕňa všetko
-    celkova_cena = cena_hudba + cena_doprava
-    
-    st.markdown(f"""
-        <div class="kalkulacka-vysledok">
-            <span style="font-size: 1.1rem; color: #ccc;">Predbežná kalkulácia ceny:</span><br>
-            <span style="font-size: 2.2rem; font-weight: bold; color: #d4af37;">{celkova_cena:.2f} €</span><br>
-            <span style="font-size: 1rem; color: #eee;">Dĺžka hrania: <b>{odhad_hodin} hod.</b> ({cena_hudba:.2f} €) | Doprava: <b>{km} km</b> ({cena_doprava:.2f} €)</span>
-        </div>
-        <br>
-    """, unsafe_allow_html=True)
-    
-    # Tlačidlo pre potvrdenie kalkulácie a prenos do formulára
-    if st.button("👉 SÚHLASÍM S TOUTO CENOU, CHCEM SI REZERVOVAŤ TERMÍN"):
-        # Uložíme hodnoty do session_state
-        st.session_state["pref_hodiny"] = odhad_hodin
-        st.session_state["pref_cena"] = f"{celkova_cena:.2f} €"
-        st.session_state["pref_cas_od"] = cas_od
-        st.session_state["pref_cas_do"] = cas_do
-        st.session_state["pref_km"] = km
-        
-        # Prepnutie na rezervačnú kartu
-        zmen_menu("🎸 Rezervácia")
-        st.rerun()
 
 # --- 3. GALÉRIA ---
-elif st.session_state["aktivne_menu"] == "📸 Galéria":
+elif menu == "📸 Galéria":
     st.title("📸 Galéria")
     fotky = [
         "https://i.postimg.cc/vZKfzcN0/received-1165768235166057.jpg", 
@@ -352,7 +299,7 @@ else:
                 with st.expander(f"DOPYT: {a['datum']} - {a.get('meno', 'Neznámy')}"):
                     st.write(f"📞 **Kontakt:** {a.get('tel', '---')} | 📧 {a.get('email', '---')}")
                     st.write(f"🕒 **Čas:** {a.get('cas', '---')}")
-                    st.write(f"💰 **Vypočítaná cena v cenníku:** {kalkulacia}")
+                    st.write(f"💰 **Vypočítaná cena na webe:** {kalkulacia}")
                     
                     st.markdown(f"""<div class="admin-detail-box"><b>Miesto a detaily:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
                     
