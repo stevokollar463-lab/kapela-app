@@ -163,11 +163,35 @@ menu = st.radio(
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# --- 1. REZERVÁCIA (Kalkulačka integrovaná priamo vo formulári) ---
+# --- 1. REZERVÁCIA (S kalkulačkou, ktorá reaguje ihneď) ---
 if menu == "🎸 Rezervácia":
     st.title("🎻 Rezervácia vystúpenia")
     st.markdown('<div class="info-box">🪗 Akordeón | 🎻 Husle | 🥁 Bubon | 🎷 Saxofón</div>', unsafe_allow_html=True)
     
+    # --- INTERAKTÍVNA KALKULAČKA (MIMO FORMULÁRA pre okamžitú odozvu) ---
+    st.markdown("<h4 style='text-align: center; margin-bottom: 5px; margin-top: 20px;'>🧮 Výpočet ceny vystúpenia</h4>", unsafe_allow_html=True)
+    
+    col_hours, col_km = st.columns(2)
+    with col_hours:
+        hodiny = st.slider("Predpokladaná dĺžka hrania (v hodinách)", min_value=1, max_value=12, value=5, key="calc_hours")
+    with col_km:
+        km = st.slider("Vzdialenosť z obce Ovčie (v km jednosmerne)", min_value=0, max_value=300, value=0, step=5, key="calc_km")
+    
+    # Výpočet ceny
+    cena_hudba = hodiny * CENA_ZA_HODINU
+    cena_doprava = km * 2 * CENA_ZA_KM  # Cesta tam aj späť
+    celkova_cena = cena_hudba + cena_doprava
+    
+    # Zobrazenie ceny v reálnom čase
+    st.markdown(f"""
+        <div class="kalkulacka-box">
+            <span style="font-size: 1.1rem; color: #ccc;">Odhadovaná cena vystúpenia:</span><br>
+            <span style="font-size: 2.2rem; font-weight: bold; color: #d4af37;">{celkova_cena:.2f} €</span><br>
+            <small style="color: #aaa;">(Hranie {hodiny} hod.: {cena_hudba:.2f} € | Doprava {km*2} km celkovo: {cena_doprava:.2f} €)</small>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # --- SAMOTNÝ REZERVAČNÝ FORMULÁR ---
     with st.form("main_booking"):
         st.subheader("📩 Rezervačný dopyt")
         
@@ -177,44 +201,20 @@ if menu == "🎸 Rezervácia":
         with col2: 
             cas = st.time_input("Čas začiatku")
             
-        # --- KALKULAČKA PRIAMO VO FORMULÁRI (BEZ NUTNOSTI ENTERU) ---
-        st.markdown("---")
-        st.markdown("<h4 style='text-align: left; margin-bottom: 10px;'>🧮 Výpočet ceny na vašu akciu</h4>", unsafe_allow_html=True)
-        col_hours, col_km = st.columns(2)
-        with col_hours:
-            hodiny = st.slider("Predpokladaná dĺžka hrania (v hodinách)", min_value=1, max_value=12, value=5)
-        with col_km:
-            # Zmenené na posuvník, aby sa cena prepočítala OKAMŽITE pri ťahaní a bez ENTERU
-            km = st.slider("Vzdialenosť z obce Ovčie (v km jednosmerne)", min_value=0, max_value=300, value=0, step=5)
-        
-        # Výpočet ceny
-        cena_hudba = hodiny * CENA_ZA_HODINU
-        cena_doprava = km * 2 * CENA_ZA_KM  # Cesta tam aj späť
-        celkova_cena = cena_hudba + cena_doprava
-        
-        st.markdown(f"""
-            <div class="kalkulacka-box">
-                <span style="font-size: 1.1rem; color: #ccc;">Odhadovaná cena vystúpenia:</span><br>
-                <span style="font-size: 2.2rem; font-weight: bold; color: #d4af37;">{celkova_cena:.2f} €</span><br>
-                <small style="color: #aaa;">(Hranie {hodiny} hod.: {cena_hudba:.2f} € | Doprava {km*2} km celkovo: {cena_doprava:.2f} €)</small>
-            </div>
-        """, unsafe_allow_html=True)
-        st.markdown("---")
-        
-        # --- OSOBNÉ ÚDAJE ---
-        st.subheader("✍️ Vaše kontaktné údaje")
+        # OSOBNÉ ÚDAJE
         meno = st.text_input("Meno a priezvisko")
         tel = st.text_input("Telefónne číslo")
         email = st.text_input("E-mail")
         mesto_detaily = st.text_area("Presná adresa konania (mesto/sála) a iné detaily")
         
-        if st.form_submit_button("ODOSLAŤ REZERVÁCIU"):
+        if st.form_submit_button("ODOSLAŤ REZERVÁCIU S TOUTO CENOU"):
             db = nacti_data()
             if any(a['datum'] == str(datum) for a in db):
                 st.error("Tento termín je už obsadený.")
             elif not meno or not tel:
                 st.warning("Vyplňte, prosím, vaše meno a telefónne číslo.")
             else:
+                # Načíta hodnoty z posuvníkov, ktoré sú mimo formulára
                 vypocitana_cena_txt = f"{celkova_cena:.2f} € ({hodiny} hod. hrania, {km} km jednosmerne)"
                 nova = {
                     "id": str(datetime.now().timestamp()), 
@@ -224,7 +224,7 @@ if menu == "🎸 Rezervácia":
                     "tel": tel, 
                     "email": email, 
                     "detaily": mesto_detaily, 
-                    "vypocitana_cena": vypocitana_cena_txt,  # Ukladá sa priamo do databázy
+                    "vypocitana_cena": vypocitana_cena_txt,  # Uloží sa do JSONu pre admina
                     "stav": "cakajuce"
                 }
                 db.append(nova); uloz_data(db)
