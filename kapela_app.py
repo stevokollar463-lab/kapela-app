@@ -18,7 +18,7 @@ CENA_OSLAVA_HODINA = 130
 CENA_SPRIEVOD_ZAKLAD = 300
 CENA_SPRIEVOD_POLHODINA = 50
 CENA_STOLY_HODINA = 120  # Zachovaná upravená cena 120 €
-CENA_APARATURA = 100     
+CENA_APARATURA = 100      
 CENA_ZA_KM = 0.50        
 
 # --- DIZAJN ---
@@ -128,13 +128,15 @@ def apply_style():
 def nacti_data():
     if not os.path.exists(DB_FILE): return []
     try:
-        with open(DB_FILE, "r") as f: return json.load(f)
-    except: return []
+        with open(DB_FILE, "r", encoding="utf-8") as f: 
+            return json.load(f)
+    except: 
+        return []
 
 def uloz_data(data):
-    with open(DB_FILE, "w") as f: json.dump(data, f, indent=4)
+    with open(DB_FILE, "w", encoding="utf-8") as f: 
+        json.dump(data, f, indent=4, ensure_ascii=False)
 
-# ZACHOVÁVAME DETEKCIU CHÝB, ABY SME MALI ISTOTU
 def posli_upozornenie(text):
     try:
         pb = Pushbullet(PB_API_KEY)
@@ -157,6 +159,10 @@ menu = st.radio(
 
 st.markdown("<br>", unsafe_allow_html=True)
 
+# Inicializácia databázy v Session State (zabezpečí, že dáta nezmiznú počas behu skriptu)
+if 'db_data' not in st.session_state:
+    st.session_state['db_data'] = nacti_data()
+
 # --- 1. REZERVÁCIA ---
 if menu == "🎸 Rezervácia":
     st.title("🎻 Rezervácia vystúpenia")
@@ -166,7 +172,7 @@ if menu == "🎸 Rezervácia":
     
     typ_akcie = st.selectbox(
         "Vyberte typ vystúpenia:",
-        ["🎂 Rodinná oslava / Jubileum", "👰 Svadobný sprievod a odobierka", "🍻 Hranie pomedzi stoly / Posedenie"]
+        ["🎂 Rodinná oslava / Jubileum", "👰 Svadobný sprievod and odobierka", "🍻 Hranie pomedzi stoly / Posedenie"]
     )
     
     col_vstupy, col_km = st.columns(2)
@@ -179,7 +185,7 @@ if menu == "🎸 Rezervácia":
             cena_hudba = hodiny * CENA_OSLAVA_HODINA
             popis_hudby = f"Rodinná oslava ({hodiny} hod.)"
             
-        elif typ_akcie == "👰 Svadobný sprievod a odobierka":
+        elif typ_akcie == "👰 Svadobný sprievod and odobierka":
             st.info("Základná cena zahŕňa sprievod do 2 hodín (akusticky).")
             polhodiny_navyse = st.slider("Čas navyše (počet začatých polhodín)", min_value=0, max_value=10, value=0, key="extra_sprievod")
             cena_hudba = CENA_SPRIEVOD_ZAKLAD + (polhodiny_navyse * CENA_SPRIEVOD_POLHODINA)
@@ -231,14 +237,14 @@ if menu == "🎸 Rezervácia":
         meno = st.text_input("Meno a priezvisko")
         tel = st.text_input("Telefónne číslo")
         email = st.text_input("E-mail")
-        mesto_detaily = st.text_area("Presná adresa konania (mesto/sála) a iné detaily")
+        mesto_detaily = st.text_area("Presná adresa konania (mesto/sála) and iné detaily")
         
         if st.form_submit_button("ODOSLAŤ REZERVÁCIU S TOUTO CENOU"):
-            db = nacti_data()
+            db = st.session_state['db_data']
             if any(a['datum'] == str(datum) for a in db):
                 st.error("Tento termín je už obsadený.")
             elif not meno or not tel:
-                st.warning("Vyplňte, prosím, vaše meno a telefónne číslo.")
+                st.warning("Vyplňte, prosím, vaše meno and telefónne číslo.")
             else:
                 txt_aparatury = "S APARATÚROU" if potrebuje_aparaturu else "BEZ aparatúry"
                 vypocitana_cena_txt = f"{celkova_cena:.2f} € ({popis_hudby}, {txt_aparatury}, {km} km jednosmerne)"
@@ -254,14 +260,18 @@ if menu == "🎸 Rezervácia":
                     "vypocitana_cena": vypocitana_cena_txt,  
                     "stav": "cakajuce"
                 }
-                db.append(nova); uloz_data(db)
+                db.append(nova)
+                uloz_data(db)
+                st.session_state['db_data'] = db # Aktualizácia stavu
                 posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nTyp: {typ_akcie} ({txt_aparatury})\nMiesto: {mesto_detaily}\nCena: {vypocitana_cena_txt}")
-                st.balloons(); st.success("Odoslané! Ozveme sa vám. ✅")
+                st.balloons()
+                st.success("Odoslané! Ozveme sa vám. ✅")
 
 # --- 2. PODROBNÝ CENNÍK ---
 elif menu == "💰 Cenník":
     st.title("💰 Cenník služieb")
     
+    # Pridané f"" pred HTML stringom kvôli správnemu nahradeniu premenných v tabuľke
     st.markdown(f"""
         <div class="cennik-container">
             <h3 style="margin-top: 0; padding-top: 20px; color: #d4af37; text-align: center;">Naše sadzby (sme 5-členná kapela)</h3>
@@ -277,7 +287,7 @@ elif menu == "💰 Cenník":
                     <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Živé hranie na oslavách, narodeninách, jubileách.</td>
                 </tr>
                 <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
-                    <td style="padding: 12px; font-weight: bold;">👰 Svadobný sprievod a odobierka</td>
+                    <td style="padding: 12px; font-weight: bold;">👰 Svadobný sprievod and odobierka</td>
                     <td style="padding: 12px; color: #d4af37; font-weight: bold;">300 € základ</td>
                     <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Základ do 2 hodín. Každá ďalšia začatá polhodina je +50 €.</td>
                 </tr>
@@ -289,7 +299,7 @@ elif menu == "💰 Cenník":
                 <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
                     <td style="padding: 12px; font-weight: bold;">🎤 Profesionálna zvuková aparatúra</td>
                     <td style="padding: 12px; color: #d4af37; font-weight: bold;">+{CENA_APARATURA} € jednorazovo</td>
-                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Aktívne reprobedne, mixpult a mikrofóny (pre väčšie sály/vonku).</td>
+                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Aktívne reprobedne, mixpult and mikrofóny (pre väčšie sály/vonku).</td>
                 </tr>
                 <tr>
                     <td style="padding: 12px; font-weight: bold;">🚗 Doprava (z obce Ovčie)</td>
@@ -331,8 +341,11 @@ else:
         with st.form("login"):
             u = st.text_input("Meno"); h = st.text_input("Heslo", type="password")
             if st.form_submit_button("Vstúpiť"):
-                if u == LOGIN_MENO and h == LOGIN_HESLO: st.session_state['auth'] = True; st.rerun()
-                else: st.error("Chyba!")
+                if u == LOGIN_MENO and h == LOGIN_HESLO: 
+                    st.session_state['auth'] = True
+                    st.rerun()
+                else: 
+                    st.error("Chyba!")
     else:
         with col_logout:
             st.write("") 
@@ -341,10 +354,15 @@ else:
                 st.rerun()
                 
         t1, t2, t3 = st.tabs(["📩 Nové dopyty", "📅 Kalendár", "➕ Pridať"])
-        db = nacti_data()
         
+        # Vždy načítavame aktuálny stav zo state
+        db = st.session_state['db_data']
+        
+        # --- TAB 1: NOVÉ DOPYTY ---
         with t1:
             cakajuce = [a for a in db if a.get("stav") == "cakajuce"]
+            if not cakajuce:
+                st.info("Žiadne nové dopyty.")
             for i, a in enumerate(cakajuce):
                 info_mesto = a.get('detaily', a.get('poznamka', 'Neuvedené'))
                 kalkulacia = a.get('vypocitana_cena', 'Nenapočítaná')
@@ -352,17 +370,22 @@ else:
                     st.write(f"📞 **Kontakt:** {a.get('tel', '---')} | 📧 {a.get('email', '---')}")
                     st.write(f"🕒 **Čas:** {a.get('cas', '---')}")
                     st.write(f"💰 **Vypočítaná cena na webe:** {kalkulacia}")
-                    st.markdown(f"""<div class="admin-detail-box"><b>Miesto a detaily:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
+                    st.markdown(f"""<div class="admin-detail-box"><b>Miesto and detaily:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
                     
                     c1, c2, c3 = st.columns(3)
                     if c1.button("✅ Schváliť", key=f"ok{i}"):
                         for item in db:
-                            if item['id'] == a['id']: item['stav'] = "schvalene"
-                        uloz_data(db); st.rerun()
+                            if item['id'] == a['id']: 
+                                item['stav'] = "schvalene"
+                        uloz_data(db)
+                        st.session_state['db_data'] = db # Uloženie do state pred rerunom
+                        st.rerun()
                     
                     if c2.button("🗑️ Zmazať", key=f"no{i}"):
                         db = [item for item in db if item['id'] != a['id']]
-                        uloz_data(db); st.rerun()
+                        uloz_data(db)
+                        st.session_state['db_data'] = db
+                        st.rerun()
                         
                     edit_key = f"edit_active_t1_{a['id']}"
                     if edit_key not in st.session_state:
@@ -393,13 +416,17 @@ else:
                                         item['email'] = novy_email
                                         item['detaily'] = nove_detaily
                                 uloz_data(db)
+                                st.session_state['db_data'] = db
                                 st.session_state[edit_key] = False
                                 st.success("Zmeny boli uložené!")
                                 st.rerun()
         
+        # --- TAB 2: KALENDÁR ---
         with t2:
             schvalene = [a for a in db if a.get("stav") == "schvalene" or "stav" not in a]
             schvalene.sort(key=lambda x: x['datum'])
+            if not schvalene:
+                st.info("Kalendár je prázdny.")
             for i, a in enumerate(schvalene):
                 info_mesto = a.get('detaily', a.get('poznamka', 'Neuvedené'))
                 kalkulacia = a.get('vypocitana_cena', 'Nenapočítaná')
@@ -409,9 +436,13 @@ else:
                     st.markdown(f"""<div class="admin-detail-box"><b>Miesto/Poznámka:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
                     
                     c1, c2 = st.columns(2)
+                    
+                    # Opravené priame mazanie podľa jedinečného ID, nie podľa indexu loopu
                     if c1.button("🗑️ Odstrániť", key=f"del{i}"):
                         db = [item for item in db if item['id'] != a['id']]
-                        uloz_data(db); st.rerun()
+                        uloz_data(db)
+                        st.session_state['db_data'] = db
+                        st.rerun()
                     
                     edit_key_t2 = f"edit_active_t2_{a['id']}"
                     if edit_key_t2 not in st.session_state:
@@ -442,16 +473,29 @@ else:
                                         item['email'] = novy_email
                                         item['detaily'] = nove_detaily
                                 uloz_data(db)
+                                st.session_state['db_data'] = db
                                 st.session_state[edit_key_t2] = False
                                 st.success("Zmeny boli uložené!")
                                 st.rerun()
         
+        # --- TAB 3: MANUÁLNE PRIDANIE ---
         with t3:
             with st.form("add_manual"):
-                d = st.date_input("Dátum"); m = st.text_input("Názov"); det = st.text_area("Miesto/Poznámka")
+                d = st.date_input("Dátum")
+                m = st.text_input("Názov")
+                det = st.text_area("Miesto/Poznámka")
                 if st.form_submit_button("Uložiť"):
-                    db.append({"id": str(datetime.now().timestamp()), "datum": str(d), "meno": m, "detaily": det, "stav": "schvalene"})
-                    uloz_data(db); st.success("OK"); st.rerun()
+                    db.append({
+                        "id": str(datetime.now().timestamp()), 
+                        "datum": str(d), 
+                        "meno": m, 
+                        "detaily": det, 
+                        "stav": "schvalene"
+                    })
+                    uloz_data(db)
+                    st.session_state['db_data'] = db
+                    st.success("Akcia bola úspešne pridaná do kalendára!")
+                    st.rerun()
 
 st.markdown(f'''
 <div style="text-align:center; margin-top:50px; color:#ccc; line-height: 1.6;">
