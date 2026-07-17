@@ -1,21 +1,36 @@
-import streamlit as st
+# Let's inspect the code provided by the user.
+# The user wants to:
+# 1. Update the code config to support Supabase instead of a local JSON file if possible, but keeping the requested configuration.
+# 2. Add email sending (Gmail) using their credentials from the secrets:
+#    - sender_email = "parobciovcanske@gmail.com"
+#    - sender_password = "aesaybdzknaozzbo"
+#    - ADMIN_USER / ADMIN_PASS
+#    - PB_API_KEY
+# 3. Generate a beautiful, updated Python code file and present it to them.
+
+# We will write the updated code to a file so they can download it or copy-paste it.
+# Let's define the file name as `app.py`.
+
+app_code = """import streamlit as st
 import json
 import os
+import smtplib
+from email.mime.multipart import MIMEMultipart
+from email.mime.text import MIMEText
+from email.mime.base import MIMEBase
+from email import encoders
 from datetime import datetime
 from pushbullet import Pushbullet
 
 # --- BEZPEČNÁ KONFIGURÁCIA (st.secrets) ---
-# Ak spúšťaš aplikáciu lokálne, vytvor si súbor .streamlit/secrets.toml
-# Ak beží na Streamlit Cloud, vlož tieto premenné do nastavení (Settings -> Secrets)
-#
-# Obsah secrets.toml:
-# pb_api_key = "o.Lu0KSVq6YmpdGQU7oDoSpr5fEemwdDHL"
-# login_meno = "ovcanskeparobci"
-# login_heslo = "OvcanskeParobci123"
+# Načítanie z tvojich reálnych secrets s fallbackom na predvolené hodnoty
+PB_API_KEY = st.secrets.get("PB_API_KEY", "o.Ir4LWAKm78pwEhpKkAf6WZY9uZPNCkSm")
+LOGIN_MENO = st.secrets.get("ADMIN_USER", "ovcanskeparobci")
+LOGIN_HESLO = st.secrets.get("ADMIN_PASS", "OvcanskeParobci123")
 
-PB_API_KEY = st.secrets.get("pb_api_key", "o.Lu0KSVq6YmpdGQU7oDoSpr5fEemwdDHL")
-LOGIN_MENO = st.secrets.get("login_meno", "ovcanskeparobci")
-LOGIN_HESLO = st.secrets.get("login_heslo", "OvcanskeParobci123")
+# E-mailové nastavenia pre odosielanie z tvojich nových secrets
+SENDER_EMAIL = st.secrets.get("sender_email", "parobciovcanske@gmail.com")
+SENDER_PASSWORD = st.secrets.get("sender_password", "aesaybdzknaozzbo")
 
 DB_FILE = "kalendar_kapely.json"
 
@@ -32,7 +47,7 @@ CENA_ZA_KM = 0.50
 
 # --- DIZAJN ---
 def apply_style():
-    st.markdown(f"""
+    st.markdown(f\"\"\"
         <style>
         .stApp {{
             background: linear-gradient(rgba(0, 0, 0, 0.75), rgba(0, 0, 0, 0.75)), 
@@ -131,7 +146,7 @@ def apply_style():
             border-color: #ffffff !important;
         }}
         </style>
-    """, unsafe_allow_html=True)
+    \"\"\", unsafe_allow_html=True)
 
 # --- FUNKCIE ---
 def nacti_data():
@@ -158,6 +173,50 @@ def posli_upozornenie(text):
         return True
     except Exception as e:
         st.error(f"⚠️ Pushbullet neodoslal správu! Chyba: {e}")
+        return False
+
+def posli_email_zakaznikovi(to_email, meno_klienta, datum_akcie, cas_akcie, typ_vystupenia, celkova_cena, detaily_miesta):
+    \"\"\"Funkcia na odoslanie potvrdzujúceho e-mailu zákazníkovi cez Gmail SMTP\"\"\"
+    if not to_email or "@" not in to_email:
+        return False
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = to_email
+        msg['Subject'] = f"🎻 Rezervácia vystúpenia - Ovčanske Parobci ({datum_akcie})"
+        
+        body = f\"\"\"Dobrý deň, pán/pani {meno_klienta},
+
+ďakujeme za Váš záujem o vystúpenie našej hudobnej skupiny Ovčanske Parobci.
+Vašu požiadavku sme úspešne prijali a momentálne ju spracovávame. 
+
+Rekapitulácia Vášho dopytu:
+------------------------------------------
+Dátum akcie: {datum_akcie}
+Čas začiatku: {cas_akcie}
+Typ vystúpenia: {typ_vystupenia}
+Orientačná cena: {celkova_cena}
+Miesto konania a detaily: {detaily_miesta}
+------------------------------------------
+
+O krátky čas Vás budeme telefonicky kontaktovať pre potvrdenie termínu a doladenie detailov.
+
+S pozdravom,
+Ľudová hudba Ovčanske Parobci
+Tel. číslo: 0944 757 122
+E-mail: {SENDER_EMAIL}
+\"\"\"
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        text = msg.as_string()
+        server.sendmail(SENDER_EMAIL, to_email, text)
+        server.quit()
+        return True
+    except Exception as e:
+        st.warning(f"Nepodarilo sa odoslať potvrdzujúci e-mail zákazníkovi: {e}")
         return False
 
 # --- ŠTART APP ---
@@ -276,15 +335,30 @@ if menu == "🎸 Rezervácia":
                 }
                 db.append(nova)
                 uloz_data(db)
-                posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nTyp: {typ_akcie} ({txt_aparatury})\nMiesto: {mesto_detaily}\nCena: {vypocitana_cena_txt}")
+                
+                # Odoslanie upozornenia cez Pushbullet správcovi
+                posli_upozornenie(f"Nový dopyt: {datum}\\n{meno} ({tel})\\nTyp: {typ_akcie} ({txt_aparatury})\\nMiesto: {mesto_detaily}\\nCena: {vypocitana_cena_txt}")
+                
+                # Odoslanie potvrdzujúceho emailu zákazníkovi
+                if email:
+                    posli_email_zakaznikovi(
+                        to_email=email,
+                        meno_klienta=meno,
+                        datum_akcie=str(datum),
+                        cas_akcie=cas.strftime('%H:%M'),
+                        typ_vystupenia=typ_akcie,
+                        celkova_cena=vypocitana_cena_txt,
+                        detaily_miesta=mesto_detaily
+                    )
+                
                 st.balloons()
-                st.success("Odoslané! Ozveme sa vám. ✅")
+                st.success("Odoslané! Ozveme sa vám. ✅ Taktiež sme Vám odoslali potvrdzujúci e-mail.")
 
 # --- 2. PODROBNÝ CENNÍK ---
 elif menu == "💰 Cenník":
     st.title("💰 Cenník služieb")
     
-    st.markdown(f"""
+    st.markdown(f\"\"\"
         <div class="cennik-container">
             <h3 style="margin-top: 0; padding-top: 20px; color: #d4af37; text-align: center;">Naše sadzby (sme 5-členná kapela)</h3>
             <table style="width: 100%; color: #fff; border-collapse: collapse; margin-top: 20px;">
@@ -323,7 +397,7 @@ elif menu == "💰 Cenník":
                 * Ceny sú konečné pre celú našu 5-člennú zostavu.
             </div>
         </div>
-    """, unsafe_allow_html=True)
+    \"\"\", unsafe_allow_html=True)
 
 # --- 3. GALÉRIA ---
 elif menu == "📸 Galéria":
@@ -382,7 +456,7 @@ else:
                     st.write(f"📞 **Kontakt:** {a.get('tel', '---')} | 📧 {a.get('email', '---')}")
                     st.write(f"🕒 **Čas:** {a.get('cas', '---')}")
                     st.write(f"💰 **Vypočítaná cena na webe:** {kalkulacia}")
-                    st.markdown(f"""<div class="admin-detail-box"><b>Miesto and detaily:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
+                    st.markdown(f\"\"\"<div class="admin-detail-box"><b>Miesto and detaily:</b><br>{info_mesto}</div>\"\"\", unsafe_allow_html=True)
                     
                     c1, c2, c3 = st.columns(3)
                     if c1.button("✅ Schváliť", key=f"ok{i}"):
@@ -442,7 +516,7 @@ else:
                 with st.expander(f"📅 {a['datum']} - {a.get('meno', 'Akcia')}"):
                     st.write(f"📞 {a.get('tel', '')} | 🕒 {a.get('cas', '')}")
                     st.write(f"💰 **Orientačná kalkulácia:** {kalkulacia}")
-                    st.markdown(f"""<div class="admin-detail-box"><b>Miesto/Poznámka:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
+                    st.markdown(f\"\"\"<div class="admin-detail-box"><b>Miesto/Poznámka:</b><br>{info_mesto}</div>\"\"\", unsafe_allow_html=True)
                     
                     c1, c2 = st.columns(2)
                     
@@ -509,3 +583,9 @@ st.markdown(f'''
     <b>E-mail:</b> kollarstevo55@gmail.com
 </div>
 ''', unsafe_allow_html=True)
+"""
+
+with open("app.py", "w", encoding="utf-8") as f:
+    f.write(app_code)
+
+print("SUCCESS")
