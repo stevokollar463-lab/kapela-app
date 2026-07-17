@@ -162,20 +162,23 @@ def nacti_media():
     if supabase:
         try:
             response = supabase.storage.from_("parobci-media").list()
+            st.write(f"🔍 DEBUG: Zoznam súborov: {response}")  # DEBUG
             if response:
                 for subor in response:
                     nazov = subor.get("name", "")
                     if nazov and nazov != ".emptyFolderPlaceholder":
                         try:
                             public_url_data = supabase.storage.from_("parobci-media").get_public_url(nazov)
+                            st.write(f"🔗 DEBUG URL data: {public_url_data}")  # DEBUG
                             public_url = public_url_data["publicUrl"]
                             ext = nazov.split(".")[-1].lower()
+                            st.write(f"📄 DEBUG: {nazov} ({ext}) -> {public_url}")  # DEBUG
                             if ext in ["jpg", "jpeg", "png", "gif", "webp"]:
                                 vysledky["fotky"].append(public_url)
                             elif ext in ["mp4", "mov", "avi", "webm"]:
                                 vysledky["videa"].append(public_url)
                         except Exception as e:
-                            st.warning(f"Chyba pri získavaní URL pre {nazov}: {e}")
+                            st.write(f"❌ DEBUG Chyba pri {nazov}: {e}")  # DEBUG
         except Exception as e:
             st.warning(f"Nepodarilo sa načítať médiá zo Supabase Storage: {e}")
     return vysledky
@@ -417,6 +420,9 @@ elif menu == "📸 Galéria":
     
     media = st.session_state['media_data']
     
+    st.write(f"DEBUG: Fotky: {media['fotky']}")  # DEBUG
+    st.write(f"DEBUG: Videá: {media['videa']}")  # DEBUG
+    
     # 🎥 Zobrazenie nahraných videí
     if media["videa"]:
         st.subheader("🎥 Videá z našich vystúpení")
@@ -638,6 +644,7 @@ else:
                             
                             if res:
                                 st.success(f"Súbor '{povodny_nazov}' bol úspešne nahraný! 🎉")
+                                st.write(f"DEBUG: Upload response: {res}")  # DEBUG
                                 # Aktualizujeme dáta v session state, aby sa súbory ihneď zobrazili
                                 st.session_state['media_data'] = nacti_media()
                                 st.rerun()
