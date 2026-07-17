@@ -158,7 +158,7 @@ def nacti_data():
 
 # Funkcia pre načítanie súborov z úložiska "parobci-media"
 def nacti_media():
-    vysledky = {"fotky": [], "videa": [], "zoznam": []}
+    vysledky = {"fotky": [], "videa": []}
     if supabase:
         try:
             # Načíta zoznam všetkých súborov v Buckete "parobci-media"
@@ -169,9 +169,7 @@ def nacti_media():
                     if nazov and nazov != ".emptyFolderPlaceholder":
                         # Vygenerovanie verejného priameho linku na súbor
                         public_url = supabase.storage.from_("parobci-media").get_public_url(nazov)
-                        # Uložíme aj do zoznamu pre administráciu
-                        vysledky["zoznam"].append({"name": nazov, "url": public_url})
-                        # Rozdelenie na fotky a videá podľa koncovky pre galériu
+                        # Rozdelenie na fotky a videá podľa koncovky
                         ext = nazov.split(".")[-1].lower()
                         if ext in ["jpg", "jpeg", "png", "gif", "webp"]:
                             vysledky["fotky"].append(public_url)
@@ -412,76 +410,41 @@ elif menu == "💰 Cenník":
         </div>
     """, unsafe_allow_html=True)
 
-# --- TAB 3: ROZDELENÝ NA DVE ZÁLOŽKY ---
-        st.subheader("Správa obsahu")
-        sub_tab1, sub_tab2 = st.tabs(["🖼️ Fotky a Videá", "📅 Manuálne akcie"])
+# --- 3. GALÉRIA (Dynamická z úložiska Supabase) ---
+elif menu == "📸 Galéria":
+    st.title("📸 Galéria a Videá")
+    
+    media = st.session_state['media_data']
+    
+    # 🎥 Zobrazenie nahraných videí
+    if media["videa"]:
+        st.subheader("🎥 Videá z našich vystúpení")
+        col_v1, col_v2 = st.columns(2)
+        for idx, video_url in enumerate(media["videa"]):
+            if idx % 2 == 0:
+                with col_v1:
+                    st.video(video_url)
+            else:
+                with col_v2:
+                    st.video(video_url)
+        st.markdown("<hr style='border-color: rgba(212,175,55,0.3);'>", unsafe_allow_html=True)
         
-        # --- ZÁLOŽKA: FOTKY A VIDEÁ ---
-        with sub_tab1:
-            st.subheader("📁 Správa médií")
-            st.write("Nahrajte súbory (.jpg, .png, .mp4) alebo odstráňte staré.")
-            
-            subor_na_nahratie = st.file_uploader(
-                "Vybrať súbor z PC/telefónu", 
-                type=["jpg", "jpeg", "png", "gif", "webp", "mp4", "mov", "avi", "webm"],
-                key="uploader_medii"
-            )
-            
-            if subor_na_nahratie is not None:
-                if st.button("🚀 NAHRAŤ"):
-                    if supabase:
-                        try:
-                            subor_bytes = subor_na_nahratie.read()
-                            cisty_nazov = f"{int(datetime.now().timestamp())}_{subor_na_nahratie.name.replace(' ', '_')}"
-                            res = supabase.storage.from_("parobci-media").upload(
-                                path=cisty_nazov,
-                                file=subor_bytes,
-                                file_options={"content-type": subor_na_nahratie.type}
-                            )
-                            if res:
-                                st.success("Nahraté!")
-                                st.session_state['media_data'] = nacti_media()
-                                st.rerun()
-                        except Exception as e: st.error(e)
-            
-            st.markdown("---")
-            zoznam_medii = st.session_state['media_data']['zoznam']
-            for m in zoznam_medii:
-                c1, c2 = st.columns([3, 1])
-                c1.write(m['name'])
-                if c2.button("🗑️ Odstrániť", key=f"del_{m['name']}"):
-                    supabase.storage.from_("parobci-media").remove([m['name']])
-                    st.session_state['media_data'] = nacti_media()
-                    st.rerun()
-
-        # --- ZÁLOŽKA: MANUÁLNE AKCIE ---
-        with sub_tab2:
-            st.subheader("➕ Pridať akciu do kalendára")
-            with st.form("add_manual"):
-                d = st.date_input("Dátum akcie")
-                t = st.time_input("Čas začiatku")
-                m = st.text_input("Meno / Názov akcie")
-                tel_c = st.text_input("Telefón")
-                em = st.text_input("E-mail")
-                cena = st.text_input("Dohodnutá cena", value="0.00 €")
-                det = st.text_area("Detaily/Adresa")
-                
-                if st.form_submit_button("Uložiť do kalendára"):
-                    nova_akcia = {
-                        "id": str(datetime.now().timestamp()), 
-                        "datum": str(d), 
-                        "cas": t.strftime('%H:%M'),
-                        "meno": m, 
-                        "tel": tel_c,
-                        "email": em,
-                        "vypocitana_cena": cena,
-                        "detaily": det, 
-                        "stav": "schvalene"
-                    }
-                    supabase.table("kalendar").insert(nova_akcia).execute()
-                    st.session_state['db_data'] = nacti_data()
-                    st.success("Pridané!")
-                    st.rerun()
+    # 🖼️ Zobrazenie nahraných fotiek
+    st.subheader("🖼️ Fotogaléria")
+    # Predvolené záložné fotky, ak je úložisko v Supabase prázdne
+    zostava_fotiek = media["fotky"] if media["fotky"] else [
+        "https://i.postimg.cc/vZKfzcN0/received-1165768235166057.jpg", 
+        "https://i.postimg.cc/6pPn0ymH/received-640306331056375.jpg", 
+        "https://i.postimg.cc/cLzwmrbT/received-796698713423840.jpg", 
+        "https://i.postimg.cc/RZYKRND1/received-936809825229820.jpg"
+    ]
+    
+    col_img1, col_img2 = st.columns(2)
+    for idx, f in enumerate(zostava_fotiek):
+        if idx % 2 == 0:
+            with col_img1: st.image(f, use_container_width=True)
+        else:
+            with col_img2: st.image(f, use_container_width=True)
 
 # --- 4. ADMIN ---
 else:
@@ -508,7 +471,7 @@ else:
                 st.session_state['auth'] = False
                 st.rerun()
                 
-        t1, t2, t3 = st.tabs(["📩 Nové dopyty", "📅 Kalendár", "📁 Správa médií a udalostí"])
+        t1, t2, t3 = st.tabs(["📩 Nové dopyty", "📅 Kalendár", "➕ Pridať"])
         
         db = nacti_data()
         
@@ -647,11 +610,11 @@ else:
         
         # --- TAB 3: MANUÁLNE PRIDANIE A NAHRÁVANIE MÉDIÍ ---
         with t3:
-            # 🖼️🎥 PODSEKCIA: SPRÁVA FOTIEK A VIDEÍ
-            st.subheader("📁 Správa fotiek a videí z počítača/mobilu")
-            st.write("Tu môžete nahrať nové fotky (.jpg, .png) alebo videá (.mp4), alebo odstrániť tie, ktoré sa už nachádzajú na webe v sekcii Galéria.")
+            # 🖼️🎥 PODSEKCIA: NAHRÁVANIE FOTIEK A VIDEÍ Z PC
+            st.subheader("📁 Nahrať fotky a videá priamo z počítača")
+            st.write("Tu môžete nahrať fotky (.jpg, .png) alebo videá (.mp4), ktoré sa ihneď zobrazia v Galérii.")
             
-            # Prvok na nahrávanie súborov
+            # Prvok na nahrávanie súborov (Streamlit file_uploader)
             subor_na_nahratie = st.file_uploader(
                 "Kliknite sem alebo pretiahnite súbor", 
                 type=["jpg", "jpeg", "png", "gif", "webp", "mp4", "mov", "avi", "webm"],
@@ -662,10 +625,13 @@ else:
                 if st.button("🚀 NAHRAŤ VYBRANÝ SÚBOR"):
                     if supabase:
                         try:
+                            # Prečítame bajty súboru
                             subor_bytes = subor_na_nahratie.read()
+                            # Vytvoríme bezpečný názov súboru (odstránime diakritiku/medzery)
                             povodny_nazov = subor_na_nahratie.name
                             cisty_nazov = f"{int(datetime.now().timestamp())}_{povodny_nazov.replace(' ', '_')}"
                             
+                            # Nahratie do Supabase Storage bucketu "parobci-media"
                             res = supabase.storage.from_("parobci-media").upload(
                                 path=cisty_nazov,
                                 file=subor_bytes,
@@ -674,6 +640,7 @@ else:
                             
                             if res:
                                 st.success(f"Súbor '{povodny_nazov}' bol úspešne nahraný! 🎉")
+                                # Aktualizujeme dáta v session state, aby sa súbory ihneď zobrazili
                                 st.session_state['media_data'] = nacti_media()
                                 st.rerun()
                         except Exception as e:
@@ -681,28 +648,6 @@ else:
                     else:
                         st.error("Chyba: Pripojenie k Supabase nie je aktívne.")
             
-            st.markdown("<hr style='border-color: rgba(212,175,55,0.3);'>", unsafe_allow_html=True)
-            
-            # Zoznam existujúcich súborov s možnosťou vymazania
-            st.subheader("🗑️ Súbory nahraté na webe")
-            zoznam_medii = st.session_state['media_data']['zoznam']
-            
-            if not zoznam_medii:
-                st.info("V galérii momentálne nemáte nahraté žiadne vlastné súbory.")
-            else:
-                for m in zoznam_medii:
-                    c_nazov, c_vymazat = st.columns([3, 1])
-                    c_nazov.write(m['name'])
-                    if c_vymazat.button("🗑️ Odstrániť", key=f"del_{m['name']}"):
-                        if supabase:
-                            try:
-                                supabase.storage.from_("parobci-media").remove([m['name']])
-                                st.success(f"Súbor {m['name']} bol úspešne odstránený.")
-                                st.session_state['media_data'] = nacti_media()
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Nepodarilo sa odstrániť súbor zo Supabase: {e}")
-                                
             st.markdown("<hr style='border-color: rgba(212,175,55,0.3);'>", unsafe_allow_html=True)
             
             # Formár na manuálne pridanie akcie
