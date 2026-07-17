@@ -412,37 +412,76 @@ elif menu == "💰 Cenník":
         </div>
     """, unsafe_allow_html=True)
 
-# --- 3. GALÉRIA (Dynamická z úložiska Supabase) ---
-elif menu == "📸 Galéria":
-    st.title("📸 Galéria a Videá")
-    
-    media = st.session_state['media_data']
-    
-    # 🎥 Zobrazenie nahraných videí
-    if media["videa"]:
-        st.subheader("🎥 Videá z našich vystúpení")
-        col_v1, col_v2 = st.columns(2)
-        for idx, video_url in enumerate(media["videa"]):
-            if idx % 2 == 0:
-                with col_v1:
-                    st.video(video_url)
-            else:
-                with col_v2:
-                    st.video(video_url)
-        st.markdown("<hr style='border-color: rgba(212,175,55,0.3);'>", unsafe_allow_html=True)
+# --- TAB 3: ROZDELENÝ NA DVE ZÁLOŽKY ---
+        st.subheader("Správa obsahu")
+        sub_tab1, sub_tab2 = st.tabs(["🖼️ Fotky a Videá", "📅 Manuálne akcie"])
         
-    # 🖼️ Zobrazenie nahraných fotiek (Iba z databázy)
-    st.subheader("🖼️ Fotogaléria")
-    
-    if media["fotky"]:
-        col_img1, col_img2 = st.columns(2)
-        for idx, f in enumerate(media["fotky"]):
-            if idx % 2 == 0:
-                with col_img1: st.image(f, use_container_width=True)
-            else:
-                with col_img2: st.image(f, use_container_width=True)
-    else:
-        st.info("Zatiaľ neboli pridané žiadne fotky. Ak ste administrátor, môžete ich pridať v sekcii Administrácia.")
+        # --- ZÁLOŽKA: FOTKY A VIDEÁ ---
+        with sub_tab1:
+            st.subheader("📁 Správa médií")
+            st.write("Nahrajte súbory (.jpg, .png, .mp4) alebo odstráňte staré.")
+            
+            subor_na_nahratie = st.file_uploader(
+                "Vybrať súbor z PC/telefónu", 
+                type=["jpg", "jpeg", "png", "gif", "webp", "mp4", "mov", "avi", "webm"],
+                key="uploader_medii"
+            )
+            
+            if subor_na_nahratie is not None:
+                if st.button("🚀 NAHRAŤ"):
+                    if supabase:
+                        try:
+                            subor_bytes = subor_na_nahratie.read()
+                            cisty_nazov = f"{int(datetime.now().timestamp())}_{subor_na_nahratie.name.replace(' ', '_')}"
+                            res = supabase.storage.from_("parobci-media").upload(
+                                path=cisty_nazov,
+                                file=subor_bytes,
+                                file_options={"content-type": subor_na_nahratie.type}
+                            )
+                            if res:
+                                st.success("Nahraté!")
+                                st.session_state['media_data'] = nacti_media()
+                                st.rerun()
+                        except Exception as e: st.error(e)
+            
+            st.markdown("---")
+            zoznam_medii = st.session_state['media_data']['zoznam']
+            for m in zoznam_medii:
+                c1, c2 = st.columns([3, 1])
+                c1.write(m['name'])
+                if c2.button("🗑️ Odstrániť", key=f"del_{m['name']}"):
+                    supabase.storage.from_("parobci-media").remove([m['name']])
+                    st.session_state['media_data'] = nacti_media()
+                    st.rerun()
+
+        # --- ZÁLOŽKA: MANUÁLNE AKCIE ---
+        with sub_tab2:
+            st.subheader("➕ Pridať akciu do kalendára")
+            with st.form("add_manual"):
+                d = st.date_input("Dátum akcie")
+                t = st.time_input("Čas začiatku")
+                m = st.text_input("Meno / Názov akcie")
+                tel_c = st.text_input("Telefón")
+                em = st.text_input("E-mail")
+                cena = st.text_input("Dohodnutá cena", value="0.00 €")
+                det = st.text_area("Detaily/Adresa")
+                
+                if st.form_submit_button("Uložiť do kalendára"):
+                    nova_akcia = {
+                        "id": str(datetime.now().timestamp()), 
+                        "datum": str(d), 
+                        "cas": t.strftime('%H:%M'),
+                        "meno": m, 
+                        "tel": tel_c,
+                        "email": em,
+                        "vypocitana_cena": cena,
+                        "detaily": det, 
+                        "stav": "schvalene"
+                    }
+                    supabase.table("kalendar").insert(nova_akcia).execute()
+                    st.session_state['db_data'] = nacti_data()
+                    st.success("Pridané!")
+                    st.rerun()
 
 # --- 4. ADMIN ---
 else:
