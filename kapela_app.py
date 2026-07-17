@@ -168,6 +168,7 @@ def nacti_media():
                     if nazov and nazov != ".emptyFolderPlaceholder":
                         public_url = supabase.storage.from_("parobci-media").get_public_url(nazov)
                         ext = nazov.split(".")[-1].lower()
+                        # Ukladáme si aj názov súboru kvôli mazaniu
                         media_info = {"url": public_url, "name": nazov}
                         if ext in ["jpg", "jpeg", "png", "gif", "webp"]:
                             vysledky["fotky"].append(media_info)
@@ -354,8 +355,7 @@ if menu == "🎸 Rezervácia":
                         if res.data:
                             st.session_state['db_data'] = nacti_data()
                             
-                            # OPRAVENÉ: Použitie definovanej premennej vypocitana_cena_txt
-                            posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nTyp: {typ_akcie}\nMiesto: {mesto_detaily}\nCena: {vypocitana_cena_txt}")
+                            posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nTyp: {typ_akcie}\nMiesto: {mesto_detaily}\nCena: {vypocitana_txt}")
                             if email:
                                 posli_email_zakaznikovi(email, meno, str(datum), cas.strftime('%H:%M'), typ_akcie, vypocitana_cena_txt, mesto_detaily)
                             
@@ -409,52 +409,323 @@ elif menu == "💰 Cenník":
         </div>
     """, unsafe_allow_html=True)
 
-# --- 3. GALÉRIA ---
+# --- 3. GALÉRIA (Dynamická z úložiska Supabase) ---
 elif menu == "📸 Galéria":
     st.title("📸 Galéria a Videá")
+    
     media = st.session_state['media_data']
+    
+    # 🎥 Zobrazenie nahraných videí
     if media["videa"]:
-        st.subheader("🎥 Videá")
+        st.subheader("🎥 Videá z našich vystúpení")
         col_v1, col_v2 = st.columns(2)
         for idx, video_item in enumerate(media["videa"]):
-            (col_v1 if idx % 2 == 0 else col_v2).video(video_item["url"])
+            video_url = video_item["url"]
+            if idx % 2 == 0:
+                with col_v1:
+                    st.video(video_url)
+            else:
+                with col_v2:
+                    st.video(video_url)
+        st.markdown("<hr style='border-color: rgba(212,175,55,0.3);'>", unsafe_allow_html=True)
+        
+    # 🖼️ Zobrazenie nahraných fotiek
     st.subheader("🖼️ Fotogaléria")
+    zostava_fotiek = [f["url"] for f in media["fotky"]] if media["fotky"] else [
+        "https://i.postimg.cc/vZKfzcN0/received-1165768235166057.jpg", 
+        "https://i.postimg.cc/6pPn0ymH/received-640306331056375.jpg", 
+        "https://i.postimg.cc/cLzwmrbT/received-796698713423840.jpg", 
+        "https://i.postimg.cc/RZYKRND1/received-936809825229820.jpg"
+    ]
+    
     col_img1, col_img2 = st.columns(2)
-    for idx, f in enumerate(media["fotky"]):
-        (col_img1 if idx % 2 == 0 else col_img2).image(f["url"], use_container_width=True)
+    for idx, f in enumerate(zostava_fotiek):
+        if idx % 2 == 0:
+            with col_img1: st.image(f, use_container_width=True)
+        else:
+            with col_img2: st.image(f, use_container_width=True)
 
-# --- 4. ADMINISTRÁCIA ---
+# --- 4. ADMIN ---
 else:
     col_title, col_logout = st.columns([3, 1])
-    with col_title: st.title("🔐 Administrácia")
+    with col_title:
+        st.title("🔐 Administrácia")
     
     if 'auth' not in st.session_state: st.session_state['auth'] = False
+    
     if not st.session_state['auth']:
         with st.form("login"):
-            if st.text_input("Meno") == LOGIN_MENO and st.text_input("Heslo", type="password") == LOGIN_HESLO:
-                if st.form_submit_button("Vstúpiť"): st.session_state['auth'] = True; st.rerun()
+            u = st.text_input("Meno")
+            h = st.text_input("Heslo", type="password")
+            if st.form_submit_button("Vstúpiť"):
+                if u == LOGIN_MENO and h == LOGIN_HESLO: 
+                    st.session_state['auth'] = True
+                    st.rerun()
+                else: 
+                    st.error("Nesprávne prihlasovacie údaje!")
     else:
-        if col_logout.button("Odhlásiť"): st.session_state['auth'] = False; st.rerun()
+        with col_logout:
+            st.write("") 
+            if st.button("Odhlásiť sa", key="logout_btn"): 
+                st.session_state['auth'] = False
+                st.rerun()
+                
+        # 4 KARTY (ROZDELENÉ PODĽA POŽIADAVIEK)
         t1, t2, t3, t4 = st.tabs(["📩 Nové dopyty", "📅 Kalendár", "🖼️ Správa galérie & Médií", "➕ Pridať akciu"])
+        
         db = nacti_data()
         
+        # --- TAB 1: NOVÉ DOPYTY ---
         with t1:
-            for i, a in enumerate([x for x in db if x.get("stav") == "cakajuce"]):
-                with st.expander(f"DOPYT: {a['datum']} - {a.get('meno')}"):
-                    st.write(f"Cena: {a.get('vypocitana_cena')}")
-                    if st.button("✅ Schváliť", key=f"ok{i}"): supabase.table("kalendar").update({"stav": "schvalene"}).eq("id", a['id']).execute(); st.rerun()
+            cakajuce = [a for a in db if a.get("stav") == "cakajuce"]
+            if not cakajuce:
+                st.info("Žiadne nové dopyty.")
+            for i, a in enumerate(cakajuce):
+                info_mesto = a.get('detaily', 'Neuvedené')
+                kalkulacia = a.get('vypocitana_cena', 'Nenapočítaná')
+                with st.expander(f"DOPYT: {a['datum']} - {a.get('meno', 'Neznámy')}"):
+                    st.write(f"📞 **Kontakt:** {a.get('tel', '---')} | 📧 {a.get('email', '---')}")
+                    st.write(f"🕒 **Čas:** {a.get('cas', '---')}")
+                    st.write(f"💰 **Cena:** {kalkulacia}")
+                    st.markdown(f"""<div class="admin-detail-box"><b>Miesto and detaily:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
+                    
+                    c1, c2, c3 = st.columns(3)
+                    if c1.button("✅ Schváliť", key=f"ok{i}"):
+                        if supabase:
+                            try:
+                                supabase.table("kalendar").update({"stav": "schvalene"}).eq("id", a['id']).execute()
+                                st.session_state['db_data'] = nacti_data()
+                                st.success("Dopyt schválený!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Nepodarilo sa schváliť v Supabase: {e}")
+                    
+                    if c2.button("🗑️ Zmazať", key=f"no{i}"):
+                        if supabase:
+                            try:
+                                supabase.table("kalendar").delete().eq("id", a['id']).execute()
+                                st.session_state['db_data'] = nacti_data()
+                                st.success("Dopyt vymazaný!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Nepodarilo sa vymazať zo Supabase: {e}")
+                        
+                    edit_key = f"edit_active_t1_{a['id']}"
+                    if edit_key not in st.session_state:
+                        st.session_state[edit_key] = False
+                        
+                    if c3.button("✍️ Upraviť", key=f"btn_edit_t1_{i}"):
+                        st.session_state[edit_key] = not st.session_state[edit_key]
+                        st.rerun()
+                    
+                    if st.session_state[edit_key]:
+                        with st.form(key=f"form_edit_t1_{a['id']}"):
+                            novy_datum = st.text_input("Dátum", value=a.get('datum', ''))
+                            novy_cas = st.text_input("Čas", value=a.get('cas', ''))
+                            nove_meno = st.text_input("Meno", value=a.get('meno', ''))
+                            novy_tel = st.text_input("Telefón", value=a.get('tel', ''))
+                            novy_email = st.text_input("E-mail", value=a.get('email', ''))
+                            nove_detaily = st.text_area("Miesto/Poznámka", value=info_mesto)
+                            
+                            if st.form_submit_button("Uložiť zmeny"):
+                                upravene = {
+                                    "datum": novy_datum,
+                                    "cas": novy_cas,
+                                    "meno": nove_meno,
+                                    "tel": novy_tel,
+                                    "email": novy_email,
+                                    "detaily": nove_detaily
+                                }
+                                if supabase:
+                                    try:
+                                        supabase.table("kalendar").update(upravene).eq("id", a['id']).execute()
+                                        st.session_state['db_data'] = nacti_data()
+                                        st.session_state[edit_key] = False
+                                        st.success("Zmeny uložené!")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Chyba úpravy Supabase: {e}")
+        
+        # --- TAB 2: KALENDÁR ---
         with t2:
-            for a in sorted([x for x in db if x.get("stav") == "schvalene"], key=lambda x: x['datum']):
-                with st.expander(f"📅 {a['datum']} - {a['meno']}"): st.write(a['detaily'])
+            schvalene = [a for a in db if a.get("stav") == "schvalene"]
+            schvalene.sort(key=lambda x: x['datum'])
+            if not schvalene:
+                st.info("Kalendár je prázdny.")
+            for i, a in enumerate(schvalene):
+                info_mesto = a.get('detaily', 'Neuvedené')
+                kalkulacia = a.get('vypocitana_cena', 'Nenapočítaná')
+                with st.expander(f"📅 {a['datum']} - {a.get('meno', 'Akcia')}"):
+                    st.write(f"📞 {a.get('tel', '')} | 🕒 {a.get('cas', '')}")
+                    st.write(f"💰 **Orientačná kalkulácia:** {kalkulacia}")
+                    st.markdown(f"""<div class="admin-detail-box"><b>Miesto/Poznámka:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
+                    
+                    c1, c2 = st.columns(2)
+                    
+                    if c1.button("🗑️ Odstrániť", key=f"del{i}"):
+                        if supabase:
+                            try:
+                                supabase.table("kalendar").delete().eq("id", a['id']).execute()
+                                st.session_state['db_data'] = nacti_data()
+                                st.success("Akcia odstránená!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Nepodarilo sa zmazať zo Supabase: {e}")
+                    
+                    edit_key_t2 = f"edit_active_t2_{a['id']}"
+                    if edit_key_t2 not in st.session_state:
+                        st.session_state[edit_key_t2] = False
+                        
+                    if c2.button("✍️ Upraviť", key=f"btn_edit_t2_{i}"):
+                        st.session_state[edit_key_t2] = not st.session_state[edit_key_t2]
+                        st.rerun()
+                    
+                    if st.session_state[edit_key_t2]:
+                        with st.form(key=f"form_edit_t2_{a['id']}"):
+                            novy_datum = st.text_input("Dátum", value=a.get('datum', ''))
+                            novy_cas = st.text_input("Čas", value=a.get('cas', ''))
+                            nove_meno = st.text_input("Meno / Názov", value=a.get('meno', ''))
+                            novy_tel = st.text_input("Telefón", value=a.get('tel', ''))
+                            novy_email = st.text_input("E-mail", value=a.get('email', ''))
+                            nove_detaily = st.text_area("Miesto/Poznámka", value=info_mesto)
+                            
+                            if st.form_submit_button("Uložiť zmeny"):
+                                upravene = {
+                                    "datum": novy_datum,
+                                    "cas": novy_cas,
+                                    "meno": nove_meno,
+                                    "tel": novy_tel,
+                                    "email": novy_email,
+                                    "detaily": nove_detaily
+                                }
+                                if supabase:
+                                    try:
+                                        supabase.table("kalendar").update(upravene).eq("id", a['id']).execute()
+                                        st.session_state['db_data'] = nacti_data()
+                                        st.session_state[edit_key_t2] = False
+                                        st.success("Zmeny uložené!")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Chyba úpravy Supabase: {e}")
+        
+        # --- TAB 3: SPRÁVA GALÉRIE & NAHRÁVANIE ---
         with t3:
-            up = st.file_uploader("Nahrať súbor", type=["jpg", "png", "mp4"])
-            if up and st.button("Nahrať"): supabase.storage.from_("parobci-media").upload(f"{int(datetime.now().timestamp())}_{up.name}", up.getvalue()); st.rerun()
-            for m in st.session_state['media_data']["fotky"] + st.session_state['media_data']["videa"]:
-                c1, c2 = st.columns([4, 1])
-                c1.write(m['name'])
-                if c2.button("🗑️ Zmazať", key=m['name']): supabase.storage.from_("parobci-media").remove([m['name']]); st.rerun()
+            st.subheader("📁 Nahrať fotky a videá priamo do galérie")
+            st.write("Nahrajte súbory z telefónu alebo počítača (.jpg, .png, .mp4, atď.). Súbory sa hneď objavia v Galérii.")
+            
+            subor_na_nahratie = st.file_uploader(
+                "Kliknite sem alebo pretiahnite súbor", 
+                type=["jpg", "jpeg", "png", "gif", "webp", "mp4", "mov", "avi", "webm"],
+                key="uploader_medii"
+            )
+            
+            if subor_na_nahratie is not None:
+                if st.button("🚀 NAHRAŤ VYBRANÝ SÚBOR"):
+                    if supabase:
+                        try:
+                            subor_bytes = subor_na_nahratie.read()
+                            povodny_nazov = subor_na_nahratie.name
+                            cisty_nazov = f"{int(datetime.now().timestamp())}_{povodny_nazov.replace(' ', '_')}"
+                            
+                            res = supabase.storage.from_("parobci-media").upload(
+                                path=cisty_nazov,
+                                file=subor_bytes,
+                                file_options={"content-type": subor_na_nahratie.type}
+                            )
+                            
+                            if res:
+                                st.success(f"Súbor '{povodny_nazov}' bol úspešne nahraný! 🎉")
+                                st.session_state['media_data'] = nacti_media()
+                                st.rerun()
+                        except Exception as e:
+                            st.error(f"Chyba pri nahrávaní súboru: {e}")
+                    else:
+                        st.error("Chyba: Pripojenie k Supabase nie je aktívne.")
+            
+            st.markdown("<hr style='border-color: rgba(212,175,55,0.3);'>", unsafe_allow_html=True)
+            
+            # --- MANAŽMENT UŽ EXISTUJÚCICH SÚBOROV V GALÉRII ---
+            st.subheader("⚙️ Správa a mazanie existujúcich súborov")
+            media = st.session_state['media_data']
+            
+            if not media["fotky"] and not media["videa"]:
+                st.info("V databáze nie sú žiadne vlastné nahrané médiá.")
+            else:
+                # Správa fotiek
+                if media["fotky"]:
+                    st.write("📷 **Fotky v galérii:**")
+                    for f in media["fotky"]:
+                        col_txt, col_del = st.columns([4, 1])
+                        with col_txt:
+                            st.markdown(f"📎 `{f['name']}`")
+                        with col_del:
+                            if st.button("🗑️ Zmazať", key=f"del_img_{f['name']}"):
+                                if supabase:
+                                    try:
+                                        supabase.storage.from_("parobci-media").remove([f['name']])
+                                        st.session_state['media_data'] = nacti_media()
+                                        st.success(f"Fotka {f['name']} vymazaná!")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Chyba pri mazaní: {e}")
+                
+                # Správa videí
+                if media["videa"]:
+                    st.write("🎥 **Videá v galérii:**")
+                    for v in media["videa"]:
+                        col_txt, col_del = st.columns([4, 1])
+                        with col_txt:
+                            st.markdown(f"🎬 `{v['name']}`")
+                        with col_del:
+                            if st.button("🗑️ Zmazať", key=f"del_vid_{v['name']}"):
+                                if supabase:
+                                    try:
+                                        supabase.storage.from_("parobci-media").remove([v['name']])
+                                        st.session_state['media_data'] = nacti_media()
+                                        st.success(f"Video {v['name']} vymazané!")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Chyba pri mazaní: {e}")
+                                        
+        # --- TAB 4: MANUÁLNE PRIDANIE AKCIE ---
         with t4:
             with st.form("add_manual"):
-                d = st.date_input("Dátum"); t = st.time_input("Čas"); m = st.text_input("Meno"); det = st.text_area("Detaily")
-                if st.form_submit_button("Uložiť"):
-                    supabase.table("kalendar").insert({"id": str(datetime.now().timestamp()), "datum": str(d), "cas": str(t), "meno": m, "detaily": det, "stav": "schvalene"}).execute(); st.success("Pridané!"); st.rerun()
+                st.subheader("➕ Pridanie novej objednávky do kalendára")
+                
+                d = st.date_input("Dátum akcie", value=datetime.today())
+                t = st.time_input("Čas začiatku", value=datetime.now().time())
+                m = st.text_input("Meno a priezvisko / Názov akcie")
+                tel_cislo = st.text_input("Telefónne číslo")
+                em_adresa = st.text_input("E-mail")
+                dohodnuta_cena = st.text_input("Dohodnutá cena (napr. 500.00 €)", value="0.00 €")
+                det = st.text_area("Presná adresa konania (mesto/sála) and iné detaily")
+                
+                if st.form_submit_button("Uložiť do kalendára"):
+                    if not m:
+                        st.warning("Zadajte aspoň názov alebo meno akcie.")
+                    else:
+                        nova_akcia = {
+                            "id": str(datetime.now().timestamp()), 
+                            "datum": str(d), 
+                            "cas": t.strftime('%H:%M'),
+                            "meno": m, 
+                            "tel": tel_cislo,
+                            "email": em_adresa,
+                            "vypocitana_cena": dohodnuta_cena,
+                            "detaily": det,
+                            "stav": "schvalene"
+                        }
+                        
+                        if supabase:
+                            try:
+                                res = supabase.table("kalendar").insert(nova_akcia).execute()
+                                if res.data:
+                                    st.session_state['db_data'] = nacti_data()
+                                    st.success("Akcia bola úspešne uložená do kalendára! 🎉")
+                                    st.rerun()
+                                else:
+                                    st.error("Chyba: Dáta sa nepodarilo zapísať do databázy.")
+                            except Exception as e:
+                                st.error(f"Chyba zápisu do Supabase: {e}")
+                        else:
+                            st.error("Chyba: Databáza Supabase nie je pripojená!")
