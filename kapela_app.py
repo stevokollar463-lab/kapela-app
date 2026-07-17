@@ -31,13 +31,14 @@ CENA_ZA_KM = 0.50
 
 # --- INICIALIZÁCIA SUPABASE ---
 if not SUPABASE_URL or not SUPABASE_KEY:
-    st.error("⚠️ POZOR: Chýbajú SUPABASE_URL alebo SUPABASE_KEY v Secrets!")
+    st.error("⚠️ POZOR: Chýbajú SUPABASE_URL alebo SUPABASE_KEY v Secrets! Nastavte ich v Streamlit Cloud, inak sa dáta neuložia.")
 
 @st.cache_resource
 def get_supabase_client():
     try:
         return create_client(SUPABASE_URL, SUPABASE_KEY)
     except Exception as e:
+        st.error(f"Nepodarilo sa vytvoriť Supabase klienta: {e}")
         return None
 
 supabase = get_supabase_client()
@@ -52,151 +53,408 @@ def apply_style():
             background-size: cover;
             background-position: center center;
             background-attachment: fixed;
+            image-rendering: -webkit-optimize-contrast;
             color: #ffffff;
         }}
-        [data-testid="stSidebar"] {{ display: none !important; }}
-        h1, h2, h3, h4 {{ color: #d4af37 !important; font-family: 'Playfair Display', serif; text-align: center; }}
-        .info-box {{ background: rgba(212, 175, 55, 0.15); border: 1px solid #d4af37; padding: 15px; border-radius: 15px; text-align: center; margin: 10px 0; }}
-        .cennik-container {{ background: rgba(0, 0, 0, 0.85); border: 2px solid #d4af37; padding: 25px; border-radius: 20px; margin-bottom: 25px; }}
-        .kalkulacka-box {{ background: rgba(212, 175, 55, 0.25); border: 2px dashed #d4af37; padding: 20px; border-radius: 15px; text-align: center; margin: 20px 0; }}
-        .stButton>button {{ background-color: #d4af37 !important; color: black !important; border-radius: 12px !important; font-weight: bold !important; width: 100%; }}
-        .admin-detail-box {{ background-color: rgba(0, 100, 255, 0.15); border-left: 5px solid #0064ff; padding: 10px; margin: 10px 0; border-radius: 5px; }}
+        
+        [data-testid="collapsedSidebarNoOverlay"], 
+        [data-testid="stSidebar"], 
+        button[data-testid="stSidebarCollapseButton"] {{
+            display: none !important;
+        }}
+        
+        h1, h2, h3, h4 {{ color: #d4af37 !important; font-family: 'Playfair Display', serif; text-shadow: 4px 4px 8px #000000; text-align: center; }}
+        
+        .info-box {{
+            background: rgba(212, 175, 55, 0.15);
+            border: 1px solid #d4af37;
+            padding: 15px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 10px 0;
+        }}
+
+        .cennik-container {{
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid #d4af37;
+            padding: 25px;
+            border-radius: 20px;
+            box-shadow: 0 0 25px rgba(212, 175, 55, 0.25);
+            margin-bottom: 25px;
+        }}
+
+        .kalkulacka-box {{
+            background: rgba(212, 175, 55, 0.25);
+            border: 2px dashed #d4af37;
+            padding: 20px;
+            border-radius: 15px;
+            text-align: center;
+            margin: 20px 0;
+            box-shadow: 0 0 15px rgba(212, 175, 55, 0.20);
+        }}
+
+        .stForm {{ background-color: rgba(0, 0, 0, 0.8) !important; border: 2px solid #d4af37 !important; border-radius: 20px; padding: 30px; }}
+        .stButton>button {{ background-color: #d4af37 !important; color: black !important; border-radius: 12px !important; font-weight: bold !important; width: 100%; transition: 0.3s; }}
+        
+        .admin-detail-box {{
+            background-color: rgba(0, 100, 255, 0.15);
+            border-left: 5px solid #0064ff;
+            padding: 10px;
+            margin: 10px 0;
+            border-radius: 5px;
+            font-size: 0.95rem;
+        }}
+
+        div[data-testid="stRadio"] {{
+            background: transparent !important;
+            padding: 10px 0 !important;
+        }}
+        div[data-testid="stRadio"] > div[role="radiogroup"] {{
+            display: flex !important;
+            flex-direction: row !important;
+            justify-content: center !important;
+            flex-wrap: wrap !important;
+            gap: 12px !important;
+        }}
+        div[data-testid="stRadio"] div[role="radiogroup"] > label > div:first-child {{
+            display: none !important;
+        }}
+        div[data-testid="stRadio"] div[role="radiogroup"] > label {{
+            background-color: rgba(0, 0, 0, 0.75) !important;
+            border: 2px solid #d4af37 !important;
+            color: #ffffff !important;
+            padding: 12px 24px !important;
+            border-radius: 30px !important;
+            cursor: pointer !important;
+            transition: all 0.3s ease !important;
+            font-weight: bold !important;
+            text-align: center !important;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5) !important;
+            min-width: 140px !important;
+        }}
+        div[data-testid="stRadio"] div[role="radiogroup"] > label:hover {{
+            background-color: rgba(212, 175, 55, 0.25) !important;
+            transform: translateY(-2px) !important;
+            box-shadow: 0 6px 15px rgba(212, 175, 55, 0.3) !important;
+        }}
+        div[data-testid="stRadio"] div[role="radiogroup"] > label[data-checked="true"] {{
+            background-color: #d4af37 !important;
+            color: #000000 !important;
+            box-shadow: 0 0 18px #d4af37 !important;
+            border-color: #ffffff !important;
+        }}
         </style>
     """, unsafe_allow_html=True)
 
-# --- FUNKCIE ---
+# --- FUNKCIE PRE NAČÍTANIE ZO SUPABASE ---
 def nacti_data():
     if supabase:
         try:
-            return supabase.table("kalendar").select("*").execute().data
-        except: return []
+            response = supabase.table("kalendar").select("*").execute()
+            return response.data if response.data else []
+        except Exception as e:
+            st.error(f"Chyba načítania zo Supabase: {e}")
     return []
 
+# Funkcia pre načítanie súborov z úložiska "parobci-media"
 def nacti_media():
     vysledky = {"fotky": [], "videa": []}
     if supabase:
         try:
-            res = supabase.storage.from_("parobci-media").list()
-            for subor in res:
-                nazov = subor.get("name", "")
-                if nazov and nazov != ".emptyFolderPlaceholder":
-                    url = supabase.storage.from_("parobci-media").get_public_url(nazov)
-                    ext = nazov.split(".")[-1].lower()
-                    m = {"url": url, "name": nazov}
-                    if ext in ["jpg", "jpeg", "png", "gif", "webp"]: vysledky["fotky"].append(m)
-                    elif ext in ["mp4", "mov", "avi", "webm"]: vysledky["videa"].append(m)
-        except: pass
+            response = supabase.storage.from_("parobci-media").list()
+            if response:
+                for subor in response:
+                    nazov = subor.get("name", "")
+                    if nazov and nazov != ".emptyFolderPlaceholder":
+                        public_url = supabase.storage.from_("parobci-media").get_public_url(nazov)
+                        ext = nazov.split(".")[-1].lower()
+                        media_info = {"url": public_url, "name": nazov}
+                        if ext in ["jpg", "jpeg", "png", "gif", "webp"]:
+                            vysledky["fotky"].append(media_info)
+                        elif ext in ["mp4", "mov", "avi", "webm"]:
+                            vysledky["videa"].append(media_info)
+        except Exception as e:
+            st.warning(f"Nepodarilo sa načítať médiá zo Supabase Storage: {e}")
     return vysledky
 
+# --- NOTIFIKÁCIE ---
 def posli_upozornenie(text):
-    if PB_API_KEY:
-        try: Pushbullet(PB_API_KEY).push_note("🎸 NOVÝ DOPYT", text)
-        except: pass
+    try:
+        if PB_API_KEY:
+            pb = Pushbullet(PB_API_KEY)
+            pb.push_note("🎸 NOVÝ DOPYT", text)
+            return True
+    except Exception as e:
+        st.error(f"⚠️ Pushbullet neodoslal správu! Chyba: {e}")
+    return False
 
 def posli_email_zakaznikovi(to_email, meno_klienta, datum_akcie, cas_akcie, typ_vystupenia, celkova_cena, detaily_miesta):
-    if not to_email or "@" not in to_email or not SENDER_PASSWORD: return False
+    if not to_email or "@" not in to_email or not SENDER_PASSWORD:
+        return False
     try:
         msg = MIMEMultipart()
-        msg['From'], msg['To'], msg['Subject'] = SENDER_EMAIL, to_email, f"Status: Prijatie dopytu - Ovčanske Parobci ({datum_akcie})"
-        body = f"Dobrý deň, {meno_klienta},\n\nVašu požiadavku sme prijali.\n\nDátum: {datum_akcie}\nCena: {celkova_cena}\n\nS pozdravom, Ovčanske Parobci"
+        msg['From'] = SENDER_EMAIL
+        msg['To'] = to_email
+        msg['Subject'] = f"Status: Prijatie dopytu - Ovčanske Parobci ({datum_akcie})"
+        
+        body = f"""Dobrý deň, {meno_klienta},
+
+ďakujeme za Váš záujem o vystúpenie našej hudobnej skupiny Ovčanske Parobci.
+Vašu požiadavku sme úspešne prijali a momentálne ju spracovávame. 
+
+Rekapitulácia Vášho dopytu:
+------------------------------------------
+Dátum akcie: {datum_akcie}
+Čas začiatku: {cas_akcie}
+Typ vystúpenia: {typ_vystupenia}
+Orientačná cena: {celkova_cena}
+Miesto konania a detaily: {detaily_miesta}
+------------------------------------------
+
+Čoskoro Vás budeme kontaktovať pre telefonické potvrdenie termínu a doladenie detailov.
+
+S pozdravom,
+Ľudová hudba Ovčanske Parobci
+Tel. číslo: 0944 757 122
+E-mail: {SENDER_EMAIL}
+"""
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
-        server.sendmail(SENDER_EMAIL, to_email, msg.as_string())
+        text = msg.as_string()
+        server.sendmail(SENDER_EMAIL, to_email, text)
         server.quit()
         return True
-    except: return False
+    except Exception as e:
+        st.warning(f"Nepodarilo sa odoslať potvrdzujúci e-mail zákazníkovi: {e}")
+        return False
 
-# --- APP ---
-st.set_page_config(page_title="Ovčanske Parobci", layout="centered")
+# --- ŠTART APP ---
+st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎻", layout="centered")
 apply_style()
 
-menu = st.radio("NAVIGÁCIA", ["🎸 Rezervácia", "💰 Cenník", "📸 Galéria", "🔐 Administrácia"], horizontal=True, label_visibility="collapsed")
+menu = st.radio(
+    "NAVIGÁCIA", 
+    ["🎸 Rezervácia", "💰 Cenník", "📸 Galéria", "🔐 Administrácia"], 
+    horizontal=True,
+    label_visibility="collapsed"
+)
 
-if 'db_data' not in st.session_state: st.session_state['db_data'] = nacti_data()
-if 'media_data' not in st.session_state: st.session_state['media_data'] = nacti_media()
+st.markdown("<br>", unsafe_allow_html=True)
 
+# Načítanie databázy a médií zo Supabase priamo do Session State
+if 'db_data' not in st.session_state:
+    st.session_state['db_data'] = nacti_data()
+if 'media_data' not in st.session_state:
+    st.session_state['media_data'] = nacti_media()
+
+# --- 1. REZERVÁCIA ---
 if menu == "🎸 Rezervácia":
     st.title("🎻 Rezervácia vystúpenia")
-    typ_akcie = st.selectbox("Typ vystúpenia:", ["🎂 Rodinná oslava / Jubileum", "👰 Svadobný sprievod and odobierka", "🍻 Hranie pomedzi stoly / Posedenie"])
+    st.markdown('<div class="info-box">🪗 Akordeón | 🎻 Husle | 🥁 Bubon | 🎷 Saxofón</div>', unsafe_allow_html=True)
+    
+    st.markdown("<h4 style='text-align: center; margin-bottom: 5px; margin-top: 20px;'>Výpočet ceny vystúpenia</h4>", unsafe_allow_html=True)
+    
+    typ_akcie = st.selectbox(
+        "Vyberte typ vystúpenia:",
+        ["🎂 Rodinná oslava / Jubileum", "👰 Svadobný sprievod and odobierka", "🍻 Hranie pomedzi stoly / Posedenie"]
+    )
     
     col_vstupy, col_km = st.columns(2)
+    cena_hudba = 0
+    popis_hudby = ""
+    
     with col_vstupy:
-        if "Oslava" in typ_akcie:
-            h = st.slider("Dĺžka (hod)", 1, 12, 5)
-            c_h = h * CENA_OSLAVA_HODINA
-        elif "Svadobný" in typ_akcie:
-            p = st.slider("Polhodiny navyše", 0, 10, 0)
-            c_h = CENA_SPRIEVOD_ZAKLAD + (p * CENA_SPRIEVOD_POLHODINA)
-        else:
-            h = st.slider("Dĺžka (hod)", 1, 12, 3)
-            c_h = h * CENA_STOLY_HODINA
-    with col_km: km = st.slider("Vzdialenosť z Ovčieho (km jednosmerne)", 0, 300, 0, 5)
+        if typ_akcie == "🎂 Rodinná oslava / Jubileum":
+            hodiny = st.slider("Dĺžka hrania (v hodinách)", min_value=1, max_value=12, value=5, key="hours_oslava")
+            cena_hudba = hodiny * CENA_OSLAVA_HODINA
+            popis_hudby = f"Rodinná oslava ({hodiny} hod.)"
+            
+        elif typ_akcie == "👰 Svadobný sprievod and odobierka":
+            st.info("Základná cena zahŕňa sprievod do 2 hodín (akusticky).")
+            polhodiny_navyse = st.slider("Čas navyše (počet začatých polhodín)", min_value=0, max_value=10, value=0, key="extra_sprievod")
+            cena_hudba = CENA_SPRIEVOD_ZAKLAD + (polhodiny_navyse * CENA_SPRIEVOD_POLHODINA)
+            if polhodiny_navyse > 0:
+                popis_hudby = f"Svadobný sprievod (2 hod. + {polhodiny_navyse}x polhodina navyše)"
+            else:
+                popis_hudby = "Svadobný sprievod (základ do 2 hod.)"
+                
+        elif typ_akcie == "🍻 Hranie pomedzi stoly / Posedenie":
+            hodiny = st.slider("Dĺžka hrania (v hodinách)", min_value=1, max_value=12, value=3, key="hours_stoly")
+            cena_hudba = hodiny * CENA_STOLY_HODINA
+            popis_hudby = f"Hranie pomedzi stoly ({hodiny} hod.)"
+
+    with col_km:
+        km = st.slider("Vzdialenosť z obce Ovčie (v km jednosmerne)", min_value=0, max_value=300, value=0, step=5, key="calc_km")
     
-    ap = st.checkbox("Zabezpečiť aparatúru (+100 €)")
-    celkova = c_h + (km * 2 * CENA_ZA_KM) + (CENA_APARATURA if ap else 0)
+    potrebuje_aparaturu = st.checkbox(
+        f"Zabezpečiť zvukovú aparatúru (aktívne reprobedne, mixpult, mikrofóny) (+{CENA_APARATURA} €)",
+        value=False
+    )
     
-    st.markdown(f"### Odhadovaná cena: {celkova:.2f} €")
+    cena_doprava = km * 2 * CENA_ZA_KM
+    prplatok_aparatura = CENA_APARATURA if potrebuje_aparaturu else 0
+    celkova_cena = cena_hudba + cena_doprava + prplatok_aparatura
+    
+    detaily_vypoctu = f"{popis_hudby}: {cena_hudba:.2f} €"
+    if potrebuje_aparaturu:
+        detaily_vypoctu += f" | Ozvučenie: {CENA_APARATURA:.2f} €"
+    detaily_vypoctu += f" | Doprava {km*2} km celkovo: {cena_doprava:.2f} €"
+    
+    st.markdown(f"""
+        <div class="kalkulacka-box">
+            <span style="font-size: 1.1rem; color: #ccc;">Odhadovaná cena vystúpenia:</span><br>
+            <span style="font-size: 2.2rem; font-weight: bold; color: #d4af37;">{celkova_cena:.2f} €</span><br>
+            <small style="color: #aaa;">({detaily_vypoctu})</small>
+        </div>
+    """, unsafe_allow_html=True)
     
     with st.form("main_booking"):
-        col1, col2 = st.columns(2)
-        datum = col1.date_input("Dátum", min_value=datetime.now())
-        cas = col2.time_input("Čas")
-        meno = st.text_input("Meno")
-        tel = st.text_input("Telefón")
-        email = st.text_input("E-mail")
-        detaily = st.text_area("Adresa a detaily")
+        st.subheader("📩 Rezervačný dopyt")
         
-        if st.form_submit_button("ODOSLAŤ"):
-            if not meno or not tel: st.warning("Vyplňte meno a telefón!")
+        col1, col2 = st.columns(2)
+        with col1: 
+            datum = st.date_input("Dátum akcie", min_value=datetime.now())
+        with col2: 
+            cas = st.time_input("Čas začiatku")
+            
+        meno = st.text_input("Meno a priezvisko")
+        tel = st.text_input("Telefónne číslo")
+        email = st.text_input("E-mail")
+        mesto_detaily = st.text_area("Presná adresa konania (mesto/sála) and iné detaily")
+        
+        if st.form_submit_button("ODOSLAŤ REZERVÁCIU S TOUTO CENOU"):
+            db = nacti_data()
+            
+            if any(a['datum'] == str(datum) for a in db if a.get('stav') == 'schvalene'):
+                st.error("Tento termín je už obsadený.")
+            elif not meno or not tel:
+                st.warning("Vyplňte, prosím, vaše meno and telefónne číslo.")
             else:
-                vypocitana_cena_txt = f"{celkova:.2f} €"
-                nova = {"datum": str(datum), "cas": str(cas), "meno": meno, "tel": tel, "email": email, "detaily": detaily, "vypocitana_cena": vypocitana_cena_txt, "stav": "cakajuce", "id": str(datetime.now().timestamp())}
+                txt_aparatury = "S APARATÚROU" if potrebuje_aparaturu else "BEZ aparatúry"
+                vypocitana_cena_txt = f"{celkova_cena:.2f} € ({popis_hudby}, {txt_aparatury}, {km} km jednosmerne)"
+                
+                nova = {
+                    "id": str(datetime.now().timestamp()), 
+                    "datum": str(datum), 
+                    "cas": f"{cas.strftime('%H:%M')}",
+                    "meno": meno, 
+                    "tel": tel, 
+                    "email": email, 
+                    "detaily": f"[{typ_akcie}] [Ozvučenie: {txt_aparatury}] {mesto_detaily}", 
+                    "vypocitana_cena": vypocitana_cena_txt,  
+                    "stav": "cakajuce"
+                }
+                
                 if supabase:
-                    supabase.table("kalendar").insert(nova).execute()
-                    posli_upozornenie(f"Nový dopyt: {datum} od {meno}")
-                    posli_email_zakaznikovi(email, meno, str(datum), str(cas), typ_akcie, vypocitana_cena_txt, detaily)
-                    st.success("Odoslané!")
+                    try:
+                        res = supabase.table("kalendar").insert(nova).execute()
+                        if res.data:
+                            st.session_state['db_data'] = nacti_data()
+                            
+                            # OPRAVENÉ: Použitie definovanej premennej vypocitana_cena_txt
+                            posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nTyp: {typ_akcie}\nMiesto: {mesto_detaily}\nCena: {vypocitana_cena_txt}")
+                            if email:
+                                posli_email_zakaznikovi(email, meno, str(datum), cas.strftime('%H:%M'), typ_akcie, vypocitana_cena_txt, mesto_detaily)
+                            
+                            st.balloons()
+                            st.success("Odoslané! Ozveme sa vám. ✅ Taktiež sme Vám odoslali potvrdzujúci e-mail.")
+                        else:
+                            st.error("Chyba: Dáta sa nepodarilo zapísať do databázy.")
+                    except Exception as e:
+                        st.error(f"Chyba zápisu do Supabase: {e}")
+                else:
+                    st.error("Chyba: Databáza Supabase nie je pripojená!")
 
+# --- 2. PODROBNÝ CENNÍK ---
+elif menu == "💰 Cenník":
+    st.title("💰 Cenník služieb")
+    st.markdown(f"""
+        <div class="cennik-container">
+            <h3 style="margin-top: 0; padding-top: 20px; color: #d4af37; text-align: center;">Naše sadzby (sme 5-členná kapela)</h3>
+            <table style="width: 100%; color: #fff; border-collapse: collapse; margin-top: 20px;">
+                <tr style="border-bottom: 2px solid #d4af37; text-align: left;">
+                    <th style="padding: 12px; color: #d4af37;">Služba</th>
+                    <th style="padding: 12px; color: #d4af37;">Cena</th>
+                    <th style="padding: 12px; color: #d4af37;">Poznámka</th>
+                </tr>
+                <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
+                    <td style="padding: 12px; font-weight: bold;">🎂 Rodinná oslava / Jubileum</td>
+                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">{CENA_OSLAVA_HODINA} € / hodina</td>
+                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Živé hranie na oslavách.</td>
+                </tr>
+                <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
+                    <td style="padding: 12px; font-weight: bold;">👰 Svadobný sprievod and odobierka</td>
+                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">{CENA_SPRIEVOD_ZAKLAD} € základ</td>
+                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Do 2 hodín. Každá ďalšia polhodina +{CENA_SPRIEVOD_POLHODINA} €.</td>
+                </tr>
+                <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
+                    <td style="padding: 12px; font-weight: bold;">🍻 Hranie pomedzi stoly / Posedenie</td>
+                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">{CENA_STOLY_HODINA} € / hodina</td>
+                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Komorné akustické hranie naživo.</td>
+                </tr>
+                <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
+                    <td style="padding: 12px; font-weight: bold;">🎤 Profesionálna zvuková aparatúra</td>
+                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">+{CENA_APARATURA} € jednorazovo</td>
+                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Pre väčšie sály/vonku.</td>
+                </tr>
+                <tr>
+                    <td style="padding: 12px; font-weight: bold;">🚗 Doprava (z obce Ovčie)</td>
+                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">{CENA_ZA_KM:.2f} € / km</td>
+                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Počíta sa cesta tam aj späť.</td>
+                </tr>
+            </table>
+        </div>
+    """, unsafe_allow_html=True)
+
+# --- 3. GALÉRIA ---
 elif menu == "📸 Galéria":
-    st.title("📸 Galéria")
+    st.title("📸 Galéria a Videá")
     media = st.session_state['media_data']
-    for v in media["videa"]: st.video(v["url"])
-    col1, col2 = st.columns(2)
-    for i, f in enumerate(media["fotky"]):
-        (col1 if i % 2 == 0 else col2).image(f["url"])
+    if media["videa"]:
+        st.subheader("🎥 Videá")
+        col_v1, col_v2 = st.columns(2)
+        for idx, video_item in enumerate(media["videa"]):
+            (col_v1 if idx % 2 == 0 else col_v2).video(video_item["url"])
+    st.subheader("🖼️ Fotogaléria")
+    col_img1, col_img2 = st.columns(2)
+    for idx, f in enumerate(media["fotky"]):
+        (col_img1 if idx % 2 == 0 else col_img2).image(f["url"], use_container_width=True)
 
-elif menu == "🔐 Administrácia":
+# --- 4. ADMINISTRÁCIA ---
+else:
+    col_title, col_logout = st.columns([3, 1])
+    with col_title: st.title("🔐 Administrácia")
+    
     if 'auth' not in st.session_state: st.session_state['auth'] = False
     if not st.session_state['auth']:
         with st.form("login"):
             if st.text_input("Meno") == LOGIN_MENO and st.text_input("Heslo", type="password") == LOGIN_HESLO:
                 if st.form_submit_button("Vstúpiť"): st.session_state['auth'] = True; st.rerun()
     else:
-        if st.button("Odhlásiť"): st.session_state['auth'] = False; st.rerun()
-        t1, t2, t3, t4 = st.tabs(["📩 Dopyty", "📅 Kalendár", "🖼️ Správa galérie", "➕ Pridať akciu"])
-        
+        if col_logout.button("Odhlásiť"): st.session_state['auth'] = False; st.rerun()
+        t1, t2, t3, t4 = st.tabs(["📩 Nové dopyty", "📅 Kalendár", "🖼️ Správa galérie & Médií", "➕ Pridať akciu"])
         db = nacti_data()
+        
         with t1:
-            for a in [x for x in db if x.get("stav") == "cakajuce"]:
-                with st.expander(f"{a['datum']} - {a['meno']}"):
-                    if st.button("Schváliť", key=f"ok{a['id']}"): supabase.table("kalendar").update({"stav": "schvalene"}).eq("id", a['id']).execute(); st.rerun()
+            for i, a in enumerate([x for x in db if x.get("stav") == "cakajuce"]):
+                with st.expander(f"DOPYT: {a['datum']} - {a.get('meno')}"):
+                    st.write(f"Cena: {a.get('vypocitana_cena')}")
+                    if st.button("✅ Schváliť", key=f"ok{i}"): supabase.table("kalendar").update({"stav": "schvalene"}).eq("id", a['id']).execute(); st.rerun()
         with t2:
-            for a in [x for x in db if x.get("stav") == "schvalene"]: st.write(f"{a['datum']} | {a['meno']} | {a['detaily']}")
+            for a in sorted([x for x in db if x.get("stav") == "schvalene"], key=lambda x: x['datum']):
+                with st.expander(f"📅 {a['datum']} - {a['meno']}"): st.write(a['detaily'])
         with t3:
             up = st.file_uploader("Nahrať súbor", type=["jpg", "png", "mp4"])
-            if up and st.button("Nahrať"): 
-                supabase.storage.from_("parobci-media").upload(f"{int(datetime.now().timestamp())}_{up.name}", up.getvalue())
-                st.rerun()
-            st.write("Existujúce súbory:")
+            if up and st.button("Nahrať"): supabase.storage.from_("parobci-media").upload(f"{int(datetime.now().timestamp())}_{up.name}", up.getvalue()); st.rerun()
             for m in st.session_state['media_data']["fotky"] + st.session_state['media_data']["videa"]:
-                col_n, col_d = st.columns([3, 1])
-                col_n.write(m['name'])
-                if col_d.button("Zmazať", key=m['name']): supabase.storage.from_("parobci-media").remove([m['name']]); st.rerun()
+                c1, c2 = st.columns([4, 1])
+                c1.write(m['name'])
+                if c2.button("🗑️ Zmazať", key=m['name']): supabase.storage.from_("parobci-media").remove([m['name']]); st.rerun()
         with t4:
-            with st.form("add_man"):
+            with st.form("add_manual"):
                 d = st.date_input("Dátum"); t = st.time_input("Čas"); m = st.text_input("Meno"); det = st.text_area("Detaily")
                 if st.form_submit_button("Uložiť"):
-                    supabase.table("kalendar").insert({"datum": str(d), "cas": str(t), "meno": m, "detaily": det, "stav": "schvalene", "id": str(datetime.now().timestamp())}).execute()
-                    st.success("Pridané!")
+                    supabase.table("kalendar").insert({"id": str(datetime.now().timestamp()), "datum": str(d), "cas": str(t), "meno": m, "detaily": det, "stav": "schvalene"}).execute(); st.success("Pridané!"); st.rerun()
