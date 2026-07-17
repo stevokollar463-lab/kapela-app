@@ -180,6 +180,29 @@ def nacti_media():
             pass
     return vysledky
 
+# Funkcia pre načítanie všetkých súborov (s metadátami)
+def nacti_vsetky_media():
+    subbory_list = []
+    if supabase:
+        try:
+            response = supabase.storage.from_("parobci-media").list()
+            if response:
+                for subor in response:
+                    nazov = subor.get("name", "")
+                    if nazov and nazov != ".emptyFolderPlaceholder":
+                        ext = nazov.split(".")[-1].lower()
+                        typ = "Foto" if ext in ["jpg", "jpeg", "png", "gif", "webp"] else "Video" if ext in ["mp4", "mov", "avi", "webm"] else "Iný"
+                        subbory_list.append({
+                            "nazov": nazov,
+                            "ext": ext,
+                            "typ": typ,
+                            "velkost": subor.get("metadata", {}).get("size", 0),
+                            "vytvorene": subor.get("created_at", "")
+                        })
+        except Exception as e:
+            pass
+    return subbory_list
+
 # --- NOTIFIKÁCIE ---
 def posli_upozornenie(text):
     try:
@@ -642,6 +665,41 @@ else:
                             st.error(f"Chyba pri nahrávaní súboru: {e}")
                     else:
                         st.error("Chyba: Pripojenie k Supabase nie je aktívne.")
+            
+            st.markdown("<hr style='border-color: rgba(212,175,55,0.3); margin-top: 30px;'>", unsafe_allow_html=True)
+            st.subheader("📸 Všetky médiá v galérii")
+            
+            # Zobraz všetky médiá s možnosťou vymazávania
+            vsetky_media = nacti_vsetky_media()
+            
+            if vsetky_media:
+                st.write(f"**Počet súborov:** {len(vsetky_media)}")
+                
+                for idx, media_item in enumerate(vsetky_media):
+                    col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+                    
+                    with col1:
+                        st.write(f"📄 **{media_item['nazov'][:40]}...**" if len(media_item['nazov']) > 40 else f"📄 **{media_item['nazov']}**")
+                    
+                    with col2:
+                        st.write(f"🏷️ {media_item['typ']}")
+                    
+                    with col3:
+                        # Veľkosť v KB
+                        velkost_kb = media_item['velkost'] / 1024
+                        st.write(f"💾 {velkost_kb:.1f} KB")
+                    
+                    with col4:
+                        if st.button("🗑️", key=f"delete_media_{idx}"):
+                            if supabase:
+                                try:
+                                    supabase.storage.from_("parobci-media").remove([media_item['nazov']])
+                                    st.success(f"Súbor '{media_item['nazov']}' vymazaný!")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Chyba pri vymazávaní: {e}")
+            else:
+                st.info("Galéria je zatiaľ prázdna.")
         
         # --- TAB 4: PRIDAŤ UDALOSŤ ---
         with t4:
