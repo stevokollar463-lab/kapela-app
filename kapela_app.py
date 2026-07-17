@@ -161,20 +161,21 @@ def nacti_media():
     vysledky = {"fotky": [], "videa": []}
     if supabase:
         try:
-            # Načíta zoznam všetkých súborov v Buckete "parobci-media"
             response = supabase.storage.from_("parobci-media").list()
             if response:
                 for subor in response:
                     nazov = subor.get("name", "")
                     if nazov and nazov != ".emptyFolderPlaceholder":
-                        # Vygenerovanie verejného priameho linku na súbor
-                        public_url = supabase.storage.from_("parobci-media").get_public_url(nazov)
-                        # Rozdelenie na fotky a videá podľa koncovky
-                        ext = nazov.split(".")[-1].lower()
-                        if ext in ["jpg", "jpeg", "png", "gif", "webp"]:
-                            vysledky["fotky"].append(public_url)
-                        elif ext in ["mp4", "mov", "avi", "webm"]:
-                            vysledky["videa"].append(public_url)
+                        try:
+                            public_url_data = supabase.storage.from_("parobci-media").get_public_url(nazov)
+                            public_url = public_url_data["publicUrl"]
+                            ext = nazov.split(".")[-1].lower()
+                            if ext in ["jpg", "jpeg", "png", "gif", "webp"]:
+                                vysledky["fotky"].append(public_url)
+                            elif ext in ["mp4", "mov", "avi", "webm"]:
+                                vysledky["videa"].append(public_url)
+                        except Exception as e:
+                            st.warning(f"Chyba pri získavaní URL pre {nazov}: {e}")
         except Exception as e:
             st.warning(f"Nepodarilo sa načítať médiá zo Supabase Storage: {e}")
     return vysledky
