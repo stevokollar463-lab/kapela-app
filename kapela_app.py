@@ -156,31 +156,40 @@ def nacti_data():
             st.error(f"Chyba načítania zo Supabase: {e}")
     return []
 
-# Funkcia pre načítanie súborov z úložiska "parobci-media"
+# Funkcia pre načítanie súborov z úložiska "parobci-media" - BEZ CACHE
 def nacti_media():
     vysledky = {"fotky": [], "videa": []}
     if supabase:
         try:
+            st.write("🔍 DEBUG: Pokúšam sa načítať súbory zo Storage...")
             response = supabase.storage.from_("parobci-media").list()
-            st.write(f"🔍 DEBUG: Zoznam súborov: {response}")  # DEBUG
+            st.write(f"🔍 DEBUG: list() response: {response}")
+            
             if response:
+                st.write(f"📊 DEBUG: Počet súborov: {len(response)}")
                 for subor in response:
                     nazov = subor.get("name", "")
+                    st.write(f"📄 DEBUG: Spracovávam súbor: {nazov}")
+                    
                     if nazov and nazov != ".emptyFolderPlaceholder":
                         try:
                             public_url_data = supabase.storage.from_("parobci-media").get_public_url(nazov)
-                            st.write(f"🔗 DEBUG URL data: {public_url_data}")  # DEBUG
+                            st.write(f"🔗 DEBUG URL data pre {nazov}: {public_url_data}")
                             public_url = public_url_data["publicUrl"]
                             ext = nazov.split(".")[-1].lower()
-                            st.write(f"📄 DEBUG: {nazov} ({ext}) -> {public_url}")  # DEBUG
+                            st.write(f"✅ DEBUG: {nazov} ({ext}) -> {public_url}")
+                            
                             if ext in ["jpg", "jpeg", "png", "gif", "webp"]:
                                 vysledky["fotky"].append(public_url)
                             elif ext in ["mp4", "mov", "avi", "webm"]:
                                 vysledky["videa"].append(public_url)
                         except Exception as e:
-                            st.write(f"❌ DEBUG Chyba pri {nazov}: {e}")  # DEBUG
+                            st.write(f"❌ DEBUG Chyba pri {nazov}: {e}")
+            else:
+                st.write("⚠️ DEBUG: Response je None alebo prázdny")
         except Exception as e:
             st.warning(f"Nepodarilo sa načítať médiá zo Supabase Storage: {e}")
+            st.write(f"❌ DEBUG: {e}")
     return vysledky
 
 # --- NOTIFIKÁCIE ---
@@ -250,11 +259,9 @@ menu = st.radio(
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Načítanie databázy a médií zo Supabase priamo do Session State
+# Načítanie databázy zo Supabase do Session State
 if 'db_data' not in st.session_state:
     st.session_state['db_data'] = nacti_data()
-if 'media_data' not in st.session_state:
-    st.session_state['media_data'] = nacti_media()
 
 # --- 1. REZERVÁCIA ---
 if menu == "🎸 Rezervácia":
@@ -418,10 +425,8 @@ elif menu == "💰 Cenník":
 elif menu == "📸 Galéria":
     st.title("📸 Galéria a Videá")
     
-    media = st.session_state['media_data']
-    
-    st.write(f"DEBUG: Fotky: {media['fotky']}")  # DEBUG
-    st.write(f"DEBUG: Videá: {media['videa']}")  # DEBUG
+    # Voláme nacti_media() BEZ CACHE - vždy sa obnoví
+    media = nacti_media()
     
     # 🎥 Zobrazenie nahraných videí
     if media["videa"]:
@@ -644,9 +649,6 @@ else:
                             
                             if res:
                                 st.success(f"Súbor '{povodny_nazov}' bol úspešne nahraný! 🎉")
-                                st.write(f"DEBUG: Upload response: {res}")  # DEBUG
-                                # Aktualizujeme dáta v session state, aby sa súbory ihneď zobrazili
-                                st.session_state['media_data'] = nacti_media()
                                 st.rerun()
                         except Exception as e:
                             st.error(f"Chyba pri nahrávaní súboru: {e}")
