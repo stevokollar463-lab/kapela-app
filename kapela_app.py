@@ -156,6 +156,29 @@ def nacti_data():
             st.error(f"Chyba načítania zo Supabase: {e}")
     return []
 
+# Funkcia pre načítanie súborov z úložiska "parobci-media"
+def nacti_media():
+    vysledky = {"fotky": [], "videa": []}
+    if supabase:
+        try:
+            # Načíta zoznam všetkých súborov v Buckete "parobci-media"
+            response = supabase.storage.from_("parobci-media").list()
+            if response:
+                for subor in response:
+                    nazov = subor.get("name", "")
+                    if nazov and nazov != ".emptyFolderPlaceholder":
+                        # Vygenerovanie verejného priameho linku na súbor
+                        public_url = supabase.storage.from_("parobci-media").get_public_url(nazov)
+                        # Rozdelenie na fotky a videá podľa koncovky
+                        ext = nazov.split(".")[-1].lower()
+                        if ext in ["jpg", "jpeg", "png", "gif", "webp"]:
+                            vysledky["fotky"].append(public_url)
+                        elif ext in ["mp4", "mov", "avi", "webm"]:
+                            vysledky["videa"].append(public_url)
+        except Exception as e:
+            st.warning(f"Nepodarilo sa načítať médiá zo Supabase Storage: {e}")
+    return vysledky
+
 # --- NOTIFIKÁCIE ---
 def posli_upozornenie(text):
     try:
@@ -223,9 +246,11 @@ menu = st.radio(
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Načítanie databázy zo Supabase priamo do Session State
+# Načítanie databázy a médií zo Supabase priamo do Session State
 if 'db_data' not in st.session_state:
     st.session_state['db_data'] = nacti_data()
+if 'media_data' not in st.session_state:
+    st.session_state['media_data'] = nacti_media()
 
 # --- 1. REZERVÁCIA ---
 if menu == "🎸 Rezervácia":
@@ -252,7 +277,7 @@ if menu == "🎸 Rezervácia":
         elif typ_akcie == "👰 Svadobný sprievod and odobierka":
             st.info("Základná cena zahŕňa sprievod do 2 hodín (akusticky).")
             polhodiny_navyse = st.slider("Čas navyše (počet začatých polhodín)", min_value=0, max_value=10, value=0, key="extra_sprievod")
-            cena_hudba = CENA_SPRIEVOD_ZAKLAD + (polhodiny_navyse * CENA_SPRIEVOD_POLHODINA)
+            cena_hudba = CENA_SPRIEVOD_ZAKLAD + (polhodiny_navyse * CENA_SPRIEVOD_POLHOLINA)
             if polhodiny_navyse > 0:
                 popis_hudby = f"Svadobný sprievod (2 hod. + {polhodiny_navyse}x polhodina navyše)"
             else:
@@ -303,7 +328,7 @@ if menu == "🎸 Rezervácia":
         mesto_detaily = st.text_area("Presná adresa konania (mesto/sála) and iné detaily")
         
         if st.form_submit_button("ODOSLAŤ REZERVÁCIU S TOUTO CENOU"):
-            db = nacti_data() # Čerstvé dáta priamo zo Supabase pred kontrolou
+            db = nacti_data()
             
             if any(a['datum'] == str(datum) for a in db if a.get('stav') == 'schvalene'):
                 st.error("Tento termín je už obsadený.")
@@ -325,14 +350,12 @@ if menu == "🎸 Rezervácia":
                     "stav": "cakajuce"
                 }
                 
-                # Uloženie do Supabase
                 if supabase:
                     try:
                         res = supabase.table("kalendar").insert(nova).execute()
                         if res.data:
-                            st.session_state['db_data'] = nacti_data() # Znova načítame aktuálny stav
+                            st.session_state['db_data'] = nacti_data()
                             
-                            # Odoslanie správ
                             posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nTyp: {typ_akcie}\nMiesto: {mesto_detaily}\nCena: {vypocitana_cena_txt}")
                             if email:
                                 posli_email_zakaznikovi(email, meno, str(datum), cas.strftime('%H:%M'), typ_akcie, vypocitana_cena_txt, mesto_detaily)
@@ -342,7 +365,7 @@ if menu == "🎸 Rezervácia":
                         else:
                             st.error("Chyba: Dáta sa nepodarilo zapísať do databázy.")
                     except Exception as e:
-                        st.error(f"Chyba zápisu do Supabase. Skontrolujte nastavenie tabuľky: {e}")
+                        st.error(f"Chyba zápisu do Supabase: {e}")
                 else:
                     st.error("Chyba: Databáza Supabase nie je pripojená!")
 
@@ -387,17 +410,37 @@ elif menu == "💰 Cenník":
         </div>
     """, unsafe_allow_html=True)
 
-# --- 3. GALÉRIA ---
+# --- 3. GALÉRIA (Dynamická z úložiska Supabase) ---
 elif menu == "📸 Galéria":
-    st.title("📸 Galéria")
-    fotky = [
+    st.title("📸 Galéria a Videá")
+    
+    media = st.session_state['media_data']
+    
+    # 🎥 Zobrazenie nahraných videí
+    if media["videa"]:
+        st.subheader("🎥 Videá z našich vystúpení")
+        col_v1, col_v2 = st.columns(2)
+        for idx, video_url in enumerate(media["videa"]):
+            if idx % 2 == 0:
+                with col_v1:
+                    st.video(video_url)
+            else:
+                with col_v2:
+                    st.video(video_url)
+        st.markdown("<hr style='border-color: rgba(212,175,55,0.3);'>", unsafe_allow_html=True)
+        
+    # 🖼️ Zobrazenie nahraných fotiek
+    st.subheader("🖼️ Fotogaléria")
+    # Predvolené záložné fotky, ak je úložisko v Supabase prázdne
+    zostava_fotiek = media["fotky"] if media["fotky"] else [
         "https://i.postimg.cc/vZKfzcN0/received-1165768235166057.jpg", 
         "https://i.postimg.cc/6pPn0ymH/received-640306331056375.jpg", 
         "https://i.postimg.cc/cLzwmrbT/received-796698713423840.jpg", 
         "https://i.postimg.cc/RZYKRND1/received-936809825229820.jpg"
     ]
+    
     col_img1, col_img2 = st.columns(2)
-    for idx, f in enumerate(fotky):
+    for idx, f in enumerate(zostava_fotiek):
         if idx % 2 == 0:
             with col_img1: st.image(f, use_container_width=True)
         else:
@@ -430,7 +473,6 @@ else:
                 
         t1, t2, t3 = st.tabs(["📩 Nové dopyty", "📅 Kalendár", "➕ Pridať"])
         
-        # Vždy načítame aktuálne dáta zo Supabase pre Admina
         db = nacti_data()
         
         # --- TAB 1: NOVÉ DOPYTY ---
@@ -566,12 +608,52 @@ else:
                                     except Exception as e:
                                         st.error(f"Chyba úpravy Supabase: {e}")
         
-        # --- TAB 3: MANUÁLNE PRIDANIE ---
+        # --- TAB 3: MANUÁLNE PRIDANIE A NAHRÁVANIE MÉDIÍ ---
         with t3:
+            # 🖼️🎥 PODSEKCIA: NAHRÁVANIE FOTIEK A VIDEÍ Z PC
+            st.subheader("📁 Nahrať fotky a videá priamo z počítača")
+            st.write("Tu môžete nahrať fotky (.jpg, .png) alebo videá (.mp4), ktoré sa ihneď zobrazia v Galérii.")
+            
+            # Prvok na nahrávanie súborov (Streamlit file_uploader)
+            subor_na_nahratie = st.file_uploader(
+                "Kliknite sem alebo pretiahnite súbor", 
+                type=["jpg", "jpeg", "png", "gif", "webp", "mp4", "mov", "avi", "webm"],
+                key="uploader_medii"
+            )
+            
+            if subor_na_nahratie is not None:
+                if st.button("🚀 NAHRAŤ VYBRANÝ SÚBOR"):
+                    if supabase:
+                        try:
+                            # Prečítame bajty súboru
+                            subor_bytes = subor_na_nahratie.read()
+                            # Vytvoríme bezpečný názov súboru (odstránime diakritiku/medzery)
+                            povodny_nazov = subor_na_nahratie.name
+                            cisty_nazov = f"{int(datetime.now().timestamp())}_{povodny_nazov.replace(' ', '_')}"
+                            
+                            # Nahratie do Supabase Storage bucketu "parobci-media"
+                            res = supabase.storage.from_("parobci-media").upload(
+                                path=cisty_nazov,
+                                file=subor_bytes,
+                                file_options={"content-type": subor_na_nahratie.type}
+                            )
+                            
+                            if res:
+                                st.success(f"Súbor '{povodny_nazov}' bol úspešne nahraný! 🎉")
+                                # Aktualizujeme dáta v session state, aby sa súbory ihneď zobrazili
+                                st.session_state['media_data'] = nacti_media()
+                                st.rerun()
+                        except Exception as e:
+                            st.error(f"Chyba pri nahrávaní súboru: {e}")
+                    else:
+                        st.error("Chyba: Pripojenie k Supabase nie je aktívne.")
+            
+            st.markdown("<hr style='border-color: rgba(212,175,55,0.3);'>", unsafe_allow_html=True)
+            
+            # Formár na manuálne pridanie akcie
             with st.form("add_manual"):
                 st.subheader("➕ Manuálne pridať akciu")
                 
-                # Polia pod sebou rovnaké ako v hlavnej rezervácii
                 d = st.date_input("Dátum akcie", value=datetime.today())
                 t = st.time_input("Čas začiatku", value=datetime.now().time())
                 m = st.text_input("Meno a priezvisko / Názov akcie")
@@ -593,7 +675,7 @@ else:
                             "email": em_adresa,
                             "vypocitana_cena": dohodnuta_cena,
                             "detaily": det, 
-                            "stav": "schvalene" # Automaticky schválená, keďže ju pridáva admin
+                            "stav": "schvalene"
                         }
                         if supabase:
                             try:
