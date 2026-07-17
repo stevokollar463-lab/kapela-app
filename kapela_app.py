@@ -16,7 +16,7 @@ KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg"
 # --- NASTAVENIE CIEN ---
 CENA_OSLAVA_HODINA = 130
 CENA_SPRIEVOD_ZAKLAD = 300
-CENA_SPRIEVOD_POLHODINA = 50
+CENA_SPRIEVOD_POLHOHINA = 50  # Opravený preklep z POLHODINA
 CENA_STOLY_HODINA = 120  # Zachovaná upravená cena 120 €
 CENA_APARATURA = 100      
 CENA_ZA_KM = 0.50        
@@ -126,7 +126,8 @@ def apply_style():
 
 # --- FUNKCIE ---
 def nacti_data():
-    if not os.path.exists(DB_FILE): return []
+    if not os.path.exists(DB_FILE): 
+        return []
     try:
         with open(DB_FILE, "r", encoding="utf-8") as f: 
             return json.load(f)
@@ -134,8 +135,14 @@ def nacti_data():
         return []
 
 def uloz_data(data):
-    with open(DB_FILE, "w", encoding="utf-8") as f: 
-        json.dump(data, f, indent=4, ensure_ascii=False)
+    # Najprv aktualizujeme Session State
+    st.session_state['db_data'] = list(data)
+    # Potom zapíšeme na disk
+    try:
+        with open(DB_FILE, "w", encoding="utf-8") as f: 
+            json.dump(st.session_state['db_data'], f, indent=4, ensure_ascii=False)
+    except Exception as e:
+        st.error(f"Nepodarilo sa uložiť dáta na disk: {e}")
 
 def posli_upozornenie(text):
     try:
@@ -159,7 +166,7 @@ menu = st.radio(
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Inicializácia databázy v Session State (zabezpečí, že dáta nezmiznú počas behu skriptu)
+# Inicializácia databázy v Session State (načíta z disku iba pri úplne prvom zobrazení)
 if 'db_data' not in st.session_state:
     st.session_state['db_data'] = nacti_data()
 
@@ -188,7 +195,7 @@ if menu == "🎸 Rezervácia":
         elif typ_akcie == "👰 Svadobný sprievod and odobierka":
             st.info("Základná cena zahŕňa sprievod do 2 hodín (akusticky).")
             polhodiny_navyse = st.slider("Čas navyše (počet začatých polhodín)", min_value=0, max_value=10, value=0, key="extra_sprievod")
-            cena_hudba = CENA_SPRIEVOD_ZAKLAD + (polhodiny_navyse * CENA_SPRIEVOD_POLHODINA)
+            cena_hudba = CENA_SPRIEVOD_ZAKLAD + (polhodiny_navyse * CENA_SPRIEVOD_POLHOHINA)
             if polhodiny_navyse > 0:
                 popis_hudby = f"Svadobný sprievod (2 hod. + {polhodiny_navyse}x polhodina navyše)"
             else:
@@ -240,7 +247,7 @@ if menu == "🎸 Rezervácia":
         mesto_detaily = st.text_area("Presná adresa konania (mesto/sála) and iné detaily")
         
         if st.form_submit_button("ODOSLAŤ REZERVÁCIU S TOUTO CENOU"):
-            db = st.session_state['db_data']
+            db = list(st.session_state['db_data'])
             if any(a['datum'] == str(datum) for a in db):
                 st.error("Tento termín je už obsadený.")
             elif not meno or not tel:
@@ -262,7 +269,6 @@ if menu == "🎸 Rezervácia":
                 }
                 db.append(nova)
                 uloz_data(db)
-                st.session_state['db_data'] = db # Aktualizácia stavu
                 posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nTyp: {typ_akcie} ({txt_aparatury})\nMiesto: {mesto_detaily}\nCena: {vypocitana_cena_txt}")
                 st.balloons()
                 st.success("Odoslané! Ozveme sa vám. ✅")
@@ -271,7 +277,6 @@ if menu == "🎸 Rezervácia":
 elif menu == "💰 Cenník":
     st.title("💰 Cenník služieb")
     
-    # Pridané f"" pred HTML stringom kvôli správnemu nahradeniu premenných v tabuľke
     st.markdown(f"""
         <div class="cennik-container">
             <h3 style="margin-top: 0; padding-top: 20px; color: #d4af37; text-align: center;">Naše sadzby (sme 5-členná kapela)</h3>
@@ -355,8 +360,8 @@ else:
                 
         t1, t2, t3 = st.tabs(["📩 Nové dopyty", "📅 Kalendár", "➕ Pridať"])
         
-        # Vždy načítavame aktuálny stav zo state
-        db = st.session_state['db_data']
+        # Vždy čítame čerstvé dáta priamo zo state
+        db = list(st.session_state['db_data'])
         
         # --- TAB 1: NOVÉ DOPYTY ---
         with t1:
@@ -378,13 +383,11 @@ else:
                             if item['id'] == a['id']: 
                                 item['stav'] = "schvalene"
                         uloz_data(db)
-                        st.session_state['db_data'] = db # Uloženie do state pred rerunom
                         st.rerun()
                     
                     if c2.button("🗑️ Zmazať", key=f"no{i}"):
                         db = [item for item in db if item['id'] != a['id']]
                         uloz_data(db)
-                        st.session_state['db_data'] = db
                         st.rerun()
                         
                     edit_key = f"edit_active_t1_{a['id']}"
@@ -416,7 +419,6 @@ else:
                                         item['email'] = novy_email
                                         item['detaily'] = nove_detaily
                                 uloz_data(db)
-                                st.session_state['db_data'] = db
                                 st.session_state[edit_key] = False
                                 st.success("Zmeny boli uložené!")
                                 st.rerun()
@@ -437,11 +439,9 @@ else:
                     
                     c1, c2 = st.columns(2)
                     
-                    # Opravené priame mazanie podľa jedinečného ID, nie podľa indexu loopu
                     if c1.button("🗑️ Odstrániť", key=f"del{i}"):
                         db = [item for item in db if item['id'] != a['id']]
                         uloz_data(db)
-                        st.session_state['db_data'] = db
                         st.rerun()
                     
                     edit_key_t2 = f"edit_active_t2_{a['id']}"
@@ -473,7 +473,6 @@ else:
                                         item['email'] = novy_email
                                         item['detaily'] = nove_detaily
                                 uloz_data(db)
-                                st.session_state['db_data'] = db
                                 st.session_state[edit_key_t2] = False
                                 st.success("Zmeny boli uložené!")
                                 st.rerun()
@@ -493,7 +492,6 @@ else:
                         "stav": "schvalene"
                     })
                     uloz_data(db)
-                    st.session_state['db_data'] = db
                     st.success("Akcia bola úspešne pridaná do kalendára!")
                     st.rerun()
 
