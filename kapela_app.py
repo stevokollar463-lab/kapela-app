@@ -431,20 +431,18 @@ elif menu == "📸 Galéria":
         
     # 🖼️ Zobrazenie nahraných fotiek
     st.subheader("🖼️ Fotogaléria")
-    # Predvolené záložné fotky, ak je úložisko v Supabase prázdne
-    zostava_fotiek = media["fotky"] if media["fotky"] else [
-        "https://i.postimg.cc/vZKfzcN0/received-1165768235166057.jpg", 
-        "https://i.postimg.cc/6pPn0ymH/received-640306331056375.jpg", 
-        "https://i.postimg.cc/cLzwmrbT/received-796698713423840.jpg", 
-        "https://i.postimg.cc/RZYKRND1/received-936809825229820.jpg"
-    ]
     
-    col_img1, col_img2 = st.columns(2)
-    for idx, f in enumerate(zostava_fotiek):
-        if idx % 2 == 0:
-            with col_img1: st.image(f, use_container_width=True)
-        else:
-            with col_img2: st.image(f, use_container_width=True)
+    if media["fotky"]:
+        col_img1, col_img2 = st.columns(2)
+        for idx, f in enumerate(media["fotky"]):
+            if idx % 2 == 0:
+                with col_img1:
+                    st.image(f, use_container_width=True)
+            else:
+                with col_img2:
+                    st.image(f, use_container_width=True)
+    else:
+        st.info("📸 Galéria je zatiaľ prázdna. Fotky budú pridané čoskoro.")
 
 # --- 4. ADMIN ---
 else:
@@ -471,7 +469,7 @@ else:
                 st.session_state['auth'] = False
                 st.rerun()
                 
-        t1, t2, t3 = st.tabs(["📩 Nové dopyty", "📅 Kalendár", "➕ Pridať"])
+        t1, t2, t3, t4 = st.tabs(["📩 Nové dopyty", "📅 Kalendár", "📁 Sprava medii", "➕ Pridat udalost"])
         
         db = nacti_data()
         
@@ -608,9 +606,8 @@ else:
                                     except Exception as e:
                                         st.error(f"Chyba úpravy Supabase: {e}")
         
-        # --- TAB 3: MANUÁLNE PRIDANIE A NAHRÁVANIE MÉDIÍ ---
+        # --- TAB 3: SPRAVA MEDIÍ ---
         with t3:
-            # 🖼️🎥 PODSEKCIA: NAHRÁVANIE FOTIEK A VIDEÍ Z PC
             st.subheader("📁 Nahrať fotky a videá priamo z počítača")
             st.write("Tu môžete nahrať fotky (.jpg, .png) alebo videá (.mp4), ktoré sa ihneď zobrazia v Galérii.")
             
@@ -647,15 +644,14 @@ else:
                             st.error(f"Chyba pri nahrávaní súboru: {e}")
                     else:
                         st.error("Chyba: Pripojenie k Supabase nie je aktívne.")
-            
-            st.markdown("<hr style='border-color: rgba(212,175,55,0.3);'>", unsafe_allow_html=True)
-            
-            # Formár na manuálne pridanie akcie
+        
+        # --- TAB 4: PRIDAŤ UDALOSŤ ---
+        with t4:
             with st.form("add_manual"):
                 st.subheader("➕ Manuálne pridať akciu")
                 
                 d = st.date_input("Dátum akcie", value=datetime.today())
-                t = st.time_input("Čas začiatku", value=datetime.now().time())
+                t_time = st.time_input("Čas začiatku", value=datetime.now().time())
                 m = st.text_input("Meno a priezvisko / Názov akcie")
                 tel_cislo = st.text_input("Telefónne číslo")
                 em_adresa = st.text_input("E-mail")
@@ -669,7 +665,7 @@ else:
                         nova_akcia = {
                             "id": str(datetime.now().timestamp()), 
                             "datum": str(d), 
-                            "cas": t.strftime('%H:%M'),
+                            "cas": t_time.strftime('%H:%M'),
                             "meno": m, 
                             "tel": tel_cislo,
                             "email": em_adresa,
