@@ -156,40 +156,28 @@ def nacti_data():
             st.error(f"Chyba načítania zo Supabase: {e}")
     return []
 
-# Funkcia pre načítanie súborov z úložiska "parobci-media" - BEZ CACHE
+# Funkcia pre načítanie súborov z úložiska "parobci-media" - OPRAVENÁ
 def nacti_media():
     vysledky = {"fotky": [], "videa": []}
     if supabase:
         try:
-            st.write("🔍 DEBUG: Pokúšam sa načítať súbory zo Storage...")
             response = supabase.storage.from_("parobci-media").list()
-            st.write(f"🔍 DEBUG: list() response: {response}")
-            
             if response:
-                st.write(f"📊 DEBUG: Počet súborov: {len(response)}")
                 for subor in response:
                     nazov = subor.get("name", "")
-                    st.write(f"📄 DEBUG: Spracovávam súbor: {nazov}")
-                    
                     if nazov and nazov != ".emptyFolderPlaceholder":
                         try:
-                            public_url_data = supabase.storage.from_("parobci-media").get_public_url(nazov)
-                            st.write(f"🔗 DEBUG URL data pre {nazov}: {public_url_data}")
-                            public_url = public_url_data["publicUrl"]
+                            # get_public_url() vracia PRIAMO STRING, nie slovník!
+                            public_url = supabase.storage.from_("parobci-media").get_public_url(nazov)
                             ext = nazov.split(".")[-1].lower()
-                            st.write(f"✅ DEBUG: {nazov} ({ext}) -> {public_url}")
-                            
                             if ext in ["jpg", "jpeg", "png", "gif", "webp"]:
                                 vysledky["fotky"].append(public_url)
                             elif ext in ["mp4", "mov", "avi", "webm"]:
                                 vysledky["videa"].append(public_url)
                         except Exception as e:
-                            st.write(f"❌ DEBUG Chyba pri {nazov}: {e}")
-            else:
-                st.write("⚠️ DEBUG: Response je None alebo prázdny")
+                            pass
         except Exception as e:
-            st.warning(f"Nepodarilo sa načítať médiá zo Supabase Storage: {e}")
-            st.write(f"❌ DEBUG: {e}")
+            pass
     return vysledky
 
 # --- NOTIFIKÁCIE ---
