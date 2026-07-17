@@ -569,25 +569,40 @@ else:
         # --- TAB 3: MANUÁLNE PRIDANIE ---
         with t3:
             with st.form("add_manual"):
-                d = st.date_input("Dátum")
-                m = st.text_input("Názov")
-                det = st.text_area("Miesto/Poznámka")
-                if st.form_submit_button("Uložiť"):
-                    nova_akcia = {
-                        "id": str(datetime.now().timestamp()), 
-                        "datum": str(d), 
-                        "meno": m, 
-                        "detaily": det, 
-                        "stav": "schvalene"
-                    }
-                    if supabase:
-                        try:
-                            supabase.table("kalendar").insert(nova_akcia).execute()
-                            st.session_state['db_data'] = nacti_data()
-                            st.success("Akcia bola úspešne pridaná do kalendára!")
-                            st.rerun()
-                        except Exception as e:
-                            st.error(f"Chyba pridania na Supabase: {e}")
+                st.subheader("➕ Manuálne pridať akciu")
+                
+                # Polia pod sebou rovnaké ako v hlavnej rezervácii
+                d = st.date_input("Dátum akcie", value=datetime.today())
+                t = st.time_input("Čas začiatku", value=datetime.now().time())
+                m = st.text_input("Meno a priezvisko / Názov akcie")
+                tel_cislo = st.text_input("Telefónne číslo")
+                em_adresa = st.text_input("E-mail")
+                dohodnuta_cena = st.text_input("Dohodnutá cena (napr. 500.00 €)", value="0.00 €")
+                det = st.text_area("Presná adresa konania (mesto/sála) and iné detaily")
+                
+                if st.form_submit_button("Uložiť do kalendára"):
+                    if not m:
+                        st.warning("Zadajte aspoň názov alebo meno akcie.")
+                    else:
+                        nova_akcia = {
+                            "id": str(datetime.now().timestamp()), 
+                            "datum": str(d), 
+                            "cas": t.strftime('%H:%M'),
+                            "meno": m, 
+                            "tel": tel_cislo,
+                            "email": em_adresa,
+                            "vypocitana_cena": dohodnuta_cena,
+                            "detaily": det, 
+                            "stav": "schvalene" # Automaticky schválená, keďže ju pridáva admin
+                        }
+                        if supabase:
+                            try:
+                                supabase.table("kalendar").insert(nova_akcia).execute()
+                                st.session_state['db_data'] = nacti_data()
+                                st.success("Akcia bola úspešne pridaná do kalendára!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Chyba pridania na Supabase: {e}")
 
 st.markdown(f'''
 <div style="text-align:center; margin-top:50px; color:#ccc; line-height: 1.6;">
