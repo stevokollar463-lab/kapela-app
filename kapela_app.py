@@ -6,18 +6,19 @@ from datetime import datetime
 from pushbullet import Pushbullet
 from supabase import create_client
 
-# --- BEZPEČNÁ KONFIGURÁCIA (st.secrets) ---
-PB_API_KEY = st.secrets.get("PB_API_KEY", "")
-LOGIN_MENO = st.secrets.get("ADMIN_USER", "ovcanskeparobci")
-LOGIN_HESLO = st.secrets.get("ADMIN_PASS", "OvcanskeParobci123")
-
-# E-mailové nastavenia pre odosielanie cez Gmail
-SENDER_EMAIL = st.secrets.get("sender_email", "parobciovcanske@gmail.com")
-SENDER_PASSWORD = st.secrets.get("sender_password", "")
-
-# Supabase konfigurácia
-SUPABASE_URL = st.secrets.get("SUPABASE_URL", "")
-SUPABASE_KEY = st.secrets.get("SUPABASE_KEY", "")
+# --- BEZPEČNÁ KONFIGURÁCIA (IBA st.secrets) ---
+# ⚠️ VŠETKY CITLIVÉ ÚDAJE MUSIA BYŤ V st.secrets - NIKDY V KÓDE!
+try:
+    PB_API_KEY = st.secrets["PB_API_KEY"]
+    LOGIN_MENO = st.secrets["ADMIN_USER"]
+    LOGIN_HESLO = st.secrets["ADMIN_PASS"]
+    SENDER_EMAIL = st.secrets["sender_email"]
+    SENDER_PASSWORD = st.secrets["sender_password"]
+    SUPABASE_URL = st.secrets["SUPABASE_URL"]
+    SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
+except KeyError as e:
+    st.error(f"❌ KRITICKÁ CHYBA: Chýba secret '{e.args[0]}' v Streamlit Secrets! Kontaktujte správcu.")
+    st.stop()
 
 KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg" 
 
@@ -30,20 +31,17 @@ CENA_APARATURA = 100
 CENA_ZA_KM = 0.50        
 
 # --- INICIALIZÁCIA SUPABASE ---
-if not SUPABASE_URL or not SUPABASE_KEY:
-    st.error("⚠️ POZOR: Chýbajú SUPABASE_URL alebo SUPABASE_KEY v Secrets! Nastavte ich v Streamlit Cloud, inak sa dáta neuložia.")
-
 @st.cache_resource
 def get_supabase_client():
     try:
         return create_client(SUPABASE_URL, SUPABASE_KEY)
     except Exception as e:
-        st.error(f"Nepodarilo sa vytvoriť Supabase klienta: {e}")
+        st.error(f"❌ Nepodarilo sa vytvoriť Supabase klienta: {e}")
         return None
 
 supabase = get_supabase_client()
 
-# --- DIZAJN ---
+# --- SKRYTIE GITHUB IKONY A STREAMLIT MENU ---
 def apply_style():
     st.markdown(f"""
         <style>
@@ -57,9 +55,20 @@ def apply_style():
             color: #ffffff;
         }}
         
+        /* Skrytie sidebaru a menu */
         [data-testid="collapsedSidebarNoOverlay"], 
         [data-testid="stSidebar"], 
         button[data-testid="stSidebarCollapseButton"] {{
+            display: none !important;
+        }}
+        
+        /* Skrytie GitHub ikony a menu v pravom hornom rohu */
+        [data-testid="stToolbar"] {{
+            display: none !important;
+        }}
+        
+        /* Skrytie "Deploy" tlačidla */
+        .stDeployButton {{
             display: none !important;
         }}
         
@@ -156,7 +165,6 @@ def nacti_data():
             st.error(f"Chyba načítania zo Supabase: {e}")
     return []
 
-# Funkcia pre načítanie súborov z úložiska "parobci-media" - OPRAVENÁ
 def nacti_media():
     vysledky = {"fotky": [], "videa": []}
     if supabase:
@@ -167,7 +175,6 @@ def nacti_media():
                     nazov = subor.get("name", "")
                     if nazov and nazov != ".emptyFolderPlaceholder":
                         try:
-                            # get_public_url() vracia PRIAMO STRING, nie slovník!
                             public_url = supabase.storage.from_("parobci-media").get_public_url(nazov)
                             ext = nazov.split(".")[-1].lower()
                             if ext in ["jpg", "jpeg", "png", "gif", "webp"]:
@@ -180,7 +187,6 @@ def nacti_media():
             pass
     return vysledky
 
-# Funkcia pre načítanie všetkých súborov (s metadátami)
 def nacti_vsetky_media():
     subbory_list = []
     if supabase:
@@ -258,7 +264,7 @@ E-mail: {SENDER_EMAIL}
         return False
 
 # --- ŠTART APP ---
-st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎻", layout="centered")
+st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎻", layout="centered", initial_sidebar_state="collapsed")
 apply_style()
 
 menu = st.radio(
@@ -270,7 +276,6 @@ menu = st.radio(
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Načítanie databázy zo Supabase do Session State
 if 'db_data' not in st.session_state:
     st.session_state['db_data'] = nacti_data()
 
@@ -432,14 +437,12 @@ elif menu == "💰 Cenník":
         </div>
     """, unsafe_allow_html=True)
 
-# --- 3. GALÉRIA (Dynamická z úložiska Supabase) ---
+# --- 3. GALÉRIA ---
 elif menu == "📸 Galéria":
     st.title("📸 Galéria a Videá")
     
-    # Voláme nacti_media() BEZ CACHE - vždy sa obnoví
     media = nacti_media()
     
-    # 🎥 Zobrazenie nahraných videí
     if media["videa"]:
         st.subheader("🎥 Videá z našich vystúpení")
         col_v1, col_v2 = st.columns(2)
@@ -452,7 +455,6 @@ elif menu == "📸 Galéria":
                     st.video(video_url)
         st.markdown("<hr style='border-color: rgba(212,175,55,0.3);'>", unsafe_allow_html=True)
         
-    # 🖼️ Zobrazenie nahraných fotiek
     st.subheader("🖼️ Fotogaléria")
     
     if media["fotky"]:
@@ -484,7 +486,7 @@ else:
                     st.session_state['auth'] = True
                     st.rerun()
                 else: 
-                    st.error("Nesprávne prihlasovacie údaje!")
+                    st.error("❌ Nesprávne prihlasovacie údaje!")
     else:
         with col_logout:
             st.write("") 
@@ -634,7 +636,6 @@ else:
             st.subheader("📁 Nahrať fotky a videá priamo z počítača")
             st.write("Tu môžete nahrať fotky (.jpg, .png) alebo videá (.mp4), ktoré sa ihneď zobrazia v Galérii.")
             
-            # Prvok na nahrávanie súborov (Streamlit file_uploader)
             subor_na_nahratie = st.file_uploader(
                 "Kliknite sem alebo pretiahnite súbor", 
                 type=["jpg", "jpeg", "png", "gif", "webp", "mp4", "mov", "avi", "webm"],
@@ -645,13 +646,10 @@ else:
                 if st.button("🚀 NAHRAŤ VYBRANÝ SÚBOR"):
                     if supabase:
                         try:
-                            # Prečítame bajty súboru
                             subor_bytes = subor_na_nahratie.read()
-                            # Vytvoríme bezpečný názov súboru (odstránime diakritiku/medzery)
                             povodny_nazov = subor_na_nahratie.name
                             cisty_nazov = f"{int(datetime.now().timestamp())}_{povodny_nazov.replace(' ', '_')}"
                             
-                            # Nahratie do Supabase Storage bucketu "parobci-media"
                             res = supabase.storage.from_("parobci-media").upload(
                                 path=cisty_nazov,
                                 file=subor_bytes,
@@ -669,7 +667,6 @@ else:
             st.markdown("<hr style='border-color: rgba(212,175,55,0.3); margin-top: 30px;'>", unsafe_allow_html=True)
             st.subheader("📸 Všetky médiá v galérii")
             
-            # Zobraz všetky médiá s možnosťou vymazávania
             vsetky_media = nacti_vsetky_media()
             
             if vsetky_media:
@@ -685,7 +682,6 @@ else:
                         st.write(f"🏷️ {media_item['typ']}")
                     
                     with col3:
-                        # Veľkosť v KB
                         velkost_kb = media_item['velkost'] / 1024
                         st.write(f"💾 {velkost_kb:.1f} KB")
                     
