@@ -4,11 +4,20 @@ import os
 from datetime import datetime
 from pushbullet import Pushbullet
 
-# --- KONFIGURÁCIA ---
+# --- BEZPEČNÁ KONFIGURÁCIA (st.secrets) ---
+# Ak spúšťaš aplikáciu lokálne, vytvor si súbor .streamlit/secrets.toml
+# Ak beží na Streamlit Cloud, vlož tieto premenné do nastavení (Settings -> Secrets)
+#
+# Obsah secrets.toml:
+# pb_api_key = "o.Lu0KSVq6YmpdGQU7oDoSpr5fEemwdDHL"
+# login_meno = "ovcanskeparobci"
+# login_heslo = "OvcanskeParobci123"
+
+PB_API_KEY = st.secrets.get("pb_api_key", "o.Lu0KSVq6YmpdGQU7oDoSpr5fEemwdDHL")
+LOGIN_MENO = st.secrets.get("login_meno", "ovcanskeparobci")
+LOGIN_HESLO = st.secrets.get("login_heslo", "OvcanskeParobci123")
+
 DB_FILE = "kalendar_kapely.json"
-PB_API_KEY = "o.Lu0KSVq6YmpdGQU7oDoSpr5fEemwdDHL"  # Sem vlož úplne nový kľúč z Pushbulletu
-LOGIN_MENO = "ovcanskeparobci"
-LOGIN_HESLO = "OvcanskeParobci123"  # Sem si napíš nové bezpečné heslo
 
 # HLAVNÁ FOTKA POZADIA
 KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg" 
@@ -16,8 +25,8 @@ KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg"
 # --- NASTAVENIE CIEN ---
 CENA_OSLAVA_HODINA = 130
 CENA_SPRIEVOD_ZAKLAD = 300
-CENA_SPRIEVOD_POLHOHINA = 50  # Opravený preklep z POLHODINA
-CENA_STOLY_HODINA = 120  # Zachovaná upravená cena 120 €
+CENA_SPRIEVOD_POLHODINA = 50  
+CENA_STOLY_HODINA = 120  
 CENA_APARATURA = 100      
 CENA_ZA_KM = 0.50        
 
@@ -135,9 +144,7 @@ def nacti_data():
         return []
 
 def uloz_data(data):
-    # Najprv aktualizujeme Session State
     st.session_state['db_data'] = list(data)
-    # Potom zapíšeme na disk
     try:
         with open(DB_FILE, "w", encoding="utf-8") as f: 
             json.dump(st.session_state['db_data'], f, indent=4, ensure_ascii=False)
@@ -166,7 +173,7 @@ menu = st.radio(
 
 st.markdown("<br>", unsafe_allow_html=True)
 
-# Inicializácia databázy v Session State (načíta z disku iba pri úplne prvom zobrazení)
+# Inicializácia databázy v Session State
 if 'db_data' not in st.session_state:
     st.session_state['db_data'] = nacti_data()
 
@@ -195,7 +202,7 @@ if menu == "🎸 Rezervácia":
         elif typ_akcie == "👰 Svadobný sprievod and odobierka":
             st.info("Základná cena zahŕňa sprievod do 2 hodín (akusticky).")
             polhodiny_navyse = st.slider("Čas navyše (počet začatých polhodín)", min_value=0, max_value=10, value=0, key="extra_sprievod")
-            cena_hudba = CENA_SPRIEVOD_ZAKLAD + (polhodiny_navyse * CENA_SPRIEVOD_POLHOHINA)
+            cena_hudba = CENA_SPRIEVOD_ZAKLAD + (polhodiny_navyse * CENA_SPRIEVOD_POLHODINA)
             if polhodiny_navyse > 0:
                 popis_hudby = f"Svadobný sprievod (2 hod. + {polhodiny_navyse}x polhodina navyše)"
             else:
@@ -288,13 +295,13 @@ elif menu == "💰 Cenník":
                 </tr>
                 <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
                     <td style="padding: 12px; font-weight: bold;">🎂 Rodinná oslava / Jubileum</td>
-                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">130 € / hodina</td>
+                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">{CENA_OSLAVA_HODINA} € / hodina</td>
                     <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Živé hranie na oslavách, narodeninách, jubileách.</td>
                 </tr>
                 <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
                     <td style="padding: 12px; font-weight: bold;">👰 Svadobný sprievod and odobierka</td>
-                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">300 € základ</td>
-                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Základ do 2 hodín. Každá ďalšia začatá polhodina je +50 €.</td>
+                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">{CENA_SPRIEVOD_ZAKLAD} € základ</td>
+                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Základ do 2 hodín. Každá ďalšia začatá polhodina je +{CENA_SPRIEVOD_POLHODINA} €.</td>
                 </tr>
                 <tr style="border-bottom: 1px solid rgba(212,175,55,0.2);">
                     <td style="padding: 12px; font-weight: bold;">🍻 Hranie pomedzi stoly / Posedenie</td>
@@ -308,8 +315,8 @@ elif menu == "💰 Cenník":
                 </tr>
                 <tr>
                     <td style="padding: 12px; font-weight: bold;">🚗 Doprava (z obce Ovčie)</td>
-                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">0.50 € / km</td>
-                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Suma zahŕňa kompletnú cestu tam aj späť.</td>
+                    <td style="padding: 12px; color: #d4af37; font-weight: bold;">{CENA_ZA_KM:.2f} € / km</td>
+                    <td style="padding: 12px; color: #ccc; font-size: 0.9rem;">Suma zahŕňa kompletnú cestu tam aj späť (počíta sa jednosmerná vzdialenosť * 2).</td>
                 </tr>
             </table>
             <div style="padding: 20px; text-align: center; color: #aaa; font-size: 0.85rem;">
@@ -344,13 +351,14 @@ else:
     
     if not st.session_state['auth']:
         with st.form("login"):
-            u = st.text_input("Meno"); h = st.text_input("Heslo", type="password")
+            u = st.text_input("Meno")
+            h = st.text_input("Heslo", type="password")
             if st.form_submit_button("Vstúpiť"):
                 if u == LOGIN_MENO and h == LOGIN_HESLO: 
                     st.session_state['auth'] = True
                     st.rerun()
                 else: 
-                    st.error("Chyba!")
+                    st.error("Nesprávne prihlasovacie údaje!")
     else:
         with col_logout:
             st.write("") 
@@ -360,7 +368,6 @@ else:
                 
         t1, t2, t3 = st.tabs(["📩 Nové dopyty", "📅 Kalendár", "➕ Pridať"])
         
-        # Vždy čítame čerstvé dáta priamo zo state
         db = list(st.session_state['db_data'])
         
         # --- TAB 1: NOVÉ DOPYTY ---
