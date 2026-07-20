@@ -111,6 +111,28 @@ def apply_style():
             margin: 20px 0;
         }}
 
+        .o-nas-box {{
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid #d4af37;
+            padding: 25px;
+            border-radius: 15px;
+            margin: 20px 0;
+        }}
+
+        .o-nas-text {{
+            color: #ccc;
+            line-height: 1.8;
+            font-size: 1rem;
+        }}
+
+        .clenovia-box {{
+            background: rgba(212, 175, 55, 0.1);
+            border-left: 4px solid #d4af37;
+            padding: 15px;
+            margin: 10px 0;
+            border-radius: 8px;
+        }}
+
         .recenzia-box {{
             background: rgba(0, 0, 0, 0.8);
             border: 2px solid #d4af37;
@@ -353,7 +375,7 @@ apply_style()
 
 menu = st.radio(
     "NAVIGÁCIA", 
-    ["🎸 Rezervácia", "💰 Cenník", "📸 Galéria", "⭐ Recenzie", "🔐 Administrácia"], 
+    ["🎸 Rezervácia", "💰 Cenník", "ℹ️ O nás", "📸 Galéria", "⭐ Recenzie", "🔐 Administrácia"], 
     horizontal=True,
     label_visibility="collapsed"
 )
@@ -527,7 +549,70 @@ elif menu == "💰 Cenník":
         </div>
     """, unsafe_allow_html=True)
 
-# --- 3. GALÉRIA ---
+# --- 3. O NÁS ---
+elif menu == "ℹ️ O nás":
+    st.title("ℹ️ O nás")
+    
+    st.markdown("""
+        <div class="o-nas-box">
+            <h3 style="color: #d4af37; text-align: center;">🎻 Sme Ovčanske Parobci</h3>
+            <div class="o-nas-text">
+                <p>
+                    Sme ľudová kapela založená v roku <strong>2020</strong>, ktorá sa špecializuje na vytváranie nezabudnuteľných zážitkov 
+                    na najrôznejších podujatiach. Naša päťčlenná kapela hrá s vášňou a energiou tradičnú ľudovú hudbu.
+                </p>
+                <p>
+                    <strong>Čo nám robíme:</strong>
+                </p>
+                <ul style="color: #ccc;">
+                    <li>🎂 Jubileá a oslavy narodenín</li>
+                    <li>👰 Svadobné sprievody a sprevody novomanželov</li>
+                    <li>🎉 Výstupy na rodinných a firemných akciách</li>
+                    <li>🎵 Živá hudba na posedeniach a stretnutiach</li>
+                </ul>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    st.subheader("🎼 Naši členovia")
+    
+    clenovia = [
+        {"meno": "Akordeón", "pocet": 2},
+        {"meno": "Husle", "pocet": 1},
+        {"meno": "Bubon", "pocet": 1},
+        {"meno": "Saxofón", "pocet": 1},
+    ]
+    
+    for clen in clenovia:
+        st.markdown(f"""
+            <div class="clenovia-box">
+                <strong style="color: #d4af37;">🎵 {clen['meno']}</strong>
+                <p style="margin: 5px 0; color: #ccc;">{clen['pocet']} {'člen' if clen['pocet'] == 1 else 'členovia'}</p>
+            </div>
+        """, unsafe_allow_html=True)
+    
+    st.markdown("<hr style='border-color: rgba(212,175,55,0.3); margin: 30px 0;'>", unsafe_allow_html=True)
+    st.subheader("⭐ Čo hovoria naši zákazníci")
+    
+    recenzie = nacti_recenzie()
+    
+    if recenzie:
+        for rec in recenzie[:5]:  # Zobraz prvých 5 recenzií
+            html_recenzia = f"""
+            <div class="recenzia-box">
+                <div class="recenzia-header">
+                    <span class="recenzia-meno">{rec.get('meno', 'Anonymný')}</span>
+                    <span class="recenzia-hvezdicky">{hvezdicky_html(rec.get('hvezdicky', 5))}</span>
+                </div>
+                <div class="recenzia-text">"{rec.get('text', '')}"</div>
+                <div class="recenzia-datum">📅 {rec.get('created_at', '')[:10]}</div>
+            </div>
+            """
+            st.markdown(html_recenzia, unsafe_allow_html=True)
+    else:
+        st.info("Zatiaľ tu nie sú žiadne recenzie.")
+
+# --- 4. GALÉRIA ---
 elif menu == "📸 Galéria":
     st.title("📸 Galéria a Videá")
     
@@ -559,7 +644,7 @@ elif menu == "📸 Galéria":
     else:
         st.info("📸 Galéria je zatiaľ prázdna. Fotky budú pridané čoskoro.")
 
-# --- 4. RECENZIE ---
+# --- 5. RECENZIE ---
 elif menu == "⭐ Recenzie":
     st.title("⭐ Ohlasy našich zákazníkov")
     
@@ -597,7 +682,9 @@ elif menu == "⭐ Recenzie":
         
         meno = ""
         if typ_mena == "✅ Pod mojim menom":
-            meno = st.text_input("Tvoje meno")
+            meno = st.text_input("Tvoje meno", placeholder="Napíš svoje meno...")
+            if not meno:
+                meno = "Anonymný"
         else:
             meno = "Anonymný"
         
@@ -631,7 +718,7 @@ elif menu == "⭐ Recenzie":
                 else:
                     st.error("Chyba: Databáza Supabase nie je pripojená!")
 
-# --- 5. ADMIN ---
+# --- 6. ADMIN ---
 else:
     col_title, col_logout = st.columns([3, 1])
     with col_title:
