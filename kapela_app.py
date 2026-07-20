@@ -152,30 +152,6 @@ def apply_style():
             box-shadow: 0 0 18px #d4af37 !important;
             border-color: #ffffff !important;
         }}
-        
-        /* Štýly pre indikátor voľnosti termínu */
-        .termin-volny {{
-            background: rgba(0, 200, 0, 0.2);
-            border: 2px solid #00cc00;
-            padding: 12px 20px;
-            border-radius: 12px;
-            text-align: center;
-            margin: 10px 0;
-            font-weight: bold;
-            color: #00ff00;
-            font-size: 1.1rem;
-        }}
-        .termin-obsadeny {{
-            background: rgba(255, 0, 0, 0.2);
-            border: 2px solid #ff0000;
-            padding: 12px 20px;
-            border-radius: 12px;
-            text-align: center;
-            margin: 10px 0;
-            font-weight: bold;
-            color: #ff4444;
-            font-size: 1.1rem;
-        }}
         </style>
     """, unsafe_allow_html=True)
 
@@ -303,21 +279,10 @@ st.markdown("<br>", unsafe_allow_html=True)
 if 'db_data' not in st.session_state:
     st.session_state['db_data'] = nacti_data()
 
-# --- FUNKCIA NA KONTROLU OBSADENOSTI TERMÍNU ---
-def je_termin_volny(datum_str, db_data):
-    """Skontroluje, či je daný dátum voľný (žiadna schválená akcia)"""
-    for zaznam in db_data:
-        if zaznam.get('stav') == 'schvalene' and zaznam.get('datum') == datum_str:
-            return False
-    return True
-
 # --- 1. REZERVÁCIA ---
 if menu == "🎸 Rezervácia":
     st.title("🎻 Rezervácia vystúpenia")
     st.markdown('<div class="info-box">🪗 Akordeón | 🎻 Husle | 🥁 Bubon | 🎷 Saxofón</div>', unsafe_allow_html=True)
-    
-    # --- NAČÍTANIE DÁT PRE KONTROLU TERMÍNOV ---
-    db_data = nacti_data()
     
     st.markdown("<h4 style='text-align: center; margin-bottom: 5px; margin-top: 20px;'>Výpočet ceny vystúpenia</h4>", unsafe_allow_html=True)
     
@@ -381,16 +346,6 @@ if menu == "🎸 Rezervácia":
         col1, col2 = st.columns(2)
         with col1: 
             datum = st.date_input("Dátum akcie", min_value=datetime.now())
-            
-            # --- KONTROLA OBSADENOSTI TERMÍNU PRIAMO POD VÝBEROM DÁTUMU ---
-            datum_str = str(datum)
-            je_volny = je_termin_volny(datum_str, db_data)
-            
-            if je_volny:
-                st.markdown('<div class="termin-volny">✅ Tento termín je VOĽNÝ! Môžete si ho rezervovať.</div>', unsafe_allow_html=True)
-            else:
-                st.markdown('<div class="termin-obsadeny">❌ Tento termín je už OBSADENÝ! Prosím, vyberte iný dátum.</div>', unsafe_allow_html=True)
-            
         with col2: 
             cas = st.time_input("Čas začiatku")
             
@@ -399,13 +354,11 @@ if menu == "🎸 Rezervácia":
         email = st.text_input("E-mail")
         mesto_detaily = st.text_area("Presná adresa konania (mesto/sála) a iné detaily")
         
-        # --- TLAČIDLO S KONTROLOU OBSADENOSTI ---
-        tlacidlo_odoslat = st.form_submit_button("ODOSLAŤ REZERVÁCIU S TOUTO CENOU")
-        
-        if tlacidlo_odoslat:
-            # Kontrola či je termín stále voľný (mohlo sa zmeniť počas vypĺňania)
-            if not je_termin_volny(datum_str, db_data):
-                st.error("❌ Tento termín bol medzičasom obsadený! Prosím, vyberte iný dátum.")
+        if st.form_submit_button("ODOSLAŤ REZERVÁCIU S TOUTO CENOU"):
+            db = nacti_data()
+            
+            if any(a['datum'] == str(datum) for a in db if a.get('stav') == 'schvalene'):
+                st.error("Tento termín je už obsadený.")
             elif not meno or not tel:
                 st.warning("Vyplňte, prosím, vaše meno a telefónne číslo.")
             else:
@@ -414,7 +367,7 @@ if menu == "🎸 Rezervácia":
                 
                 nova = {
                     "id": str(datetime.now().timestamp()), 
-                    "datum": datum_str, 
+                    "datum": str(datum), 
                     "cas": f"{cas.strftime('%H:%M')}",
                     "meno": meno, 
                     "tel": tel, 
@@ -430,9 +383,9 @@ if menu == "🎸 Rezervácia":
                         if res.data:
                             st.session_state['db_data'] = nacti_data()
                             
-                            posli_upozornenie(f"Nový dopyt: {datum_str}\n{meno} ({tel})\nTyp: {typ_akcie}\nMiesto: {mesto_detaily}\nCena: {vypocitana_cena_txt}")
+                            posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nTyp: {typ_akcie}\nMiesto: {mesto_detaily}\nCena: {vypocitana_cena_txt}")
                             if email:
-                                posli_email_zakaznikovi(email, meno, datum_str, cas.strftime('%H:%M'), typ_akcie, vypocitana_cena_txt, mesto_detaily)
+                                posli_email_zakaznikovi(email, meno, str(datum), cas.strftime('%H:%M'), typ_akcie, vypocitana_cena_txt, mesto_detaily)
                             
                             st.balloons()
                             st.success("Odoslané! Ozveme sa vám. ✅ Taktiež sme Vám odoslali potvrdzujúci e-mail.")
@@ -628,4 +581,163 @@ else:
                 with st.expander(f"📅 {a['datum']} - {a.get('meno', 'Akcia')}"):
                     st.write(f"📞 {a.get('tel', '')} | 🕒 {a.get('cas', '')}")
                     st.write(f"💰 **Orientačná kalkulácia:** {kalkulacia}")
-                    st.markdown(f"""<div class="admin-detail-box"><b>Miesto/Poznámka:</b><br>{info_mesto}</div>""", unsafe
+                    st.markdown(f"""<div class="admin-detail-box"><b>Miesto/Poznámka:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
+                    
+                    c1, c2 = st.columns(2)
+                    
+                    if c1.button("🗑️ Odstrániť", key=f"del{i}"):
+                        if supabase:
+                            try:
+                                supabase.table("kalendar").delete().eq("id", a['id']).execute()
+                                st.session_state['db_data'] = nacti_data()
+                                st.success("Akcia odstránená!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Nepodarilo sa zmazať zo Supabase: {e}")
+                    
+                    edit_key_t2 = f"edit_active_t2_{a['id']}"
+                    if edit_key_t2 not in st.session_state:
+                        st.session_state[edit_key_t2] = False
+                        
+                    if c2.button("✍️ Upraviť", key=f"btn_edit_t2_{i}"):
+                        st.session_state[edit_key_t2] = not st.session_state[edit_key_t2]
+                        st.rerun()
+                    
+                    if st.session_state[edit_key_t2]:
+                        with st.form(key=f"form_edit_t2_{a['id']}"):
+                            novy_datum = st.text_input("Dátum", value=a.get('datum', ''))
+                            novy_cas = st.text_input("Čas", value=a.get('cas', ''))
+                            nove_meno = st.text_input("Meno / Názov", value=a.get('meno', ''))
+                            novy_tel = st.text_input("Telefón", value=a.get('tel', ''))
+                            novy_email = st.text_input("E-mail", value=a.get('email', ''))
+                            nove_detaily = st.text_area("Miesto/Poznámka", value=info_mesto)
+                            
+                            if st.form_submit_button("Uložiť zmeny"):
+                                upravene = {
+                                    "datum": novy_datum,
+                                    "cas": novy_cas,
+                                    "meno": nove_meno,
+                                    "tel": novy_tel,
+                                    "email": novy_email,
+                                    "detaily": nove_detaily
+                                }
+                                if supabase:
+                                    try:
+                                        supabase.table("kalendar").update(upravene).eq("id", a['id']).execute()
+                                        st.session_state['db_data'] = nacti_data()
+                                        st.session_state[edit_key_t2] = False
+                                        st.success("Zmeny uložené!")
+                                        st.rerun()
+                                    except Exception as e:
+                                        st.error(f"Chyba úpravy Supabase: {e}")
+        
+        # --- TAB 3: SPRAVA MEDIÍ ---
+        with t3:
+            st.subheader("📁 Nahrať fotky a videá priamo z počítača")
+            st.write("Tu môžete nahrať fotky (.jpg, .png) alebo videá (.mp4), ktoré sa ihneď zobrazia v Galérii.")
+            
+            subor_na_nahratie = st.file_uploader(
+                "Kliknite sem alebo pretiahnite súbor", 
+                type=["jpg", "jpeg", "png", "gif", "webp", "mp4", "mov", "avi", "webm"],
+                key="uploader_medii"
+            )
+            
+            if subor_na_nahratie is not None:
+                if st.button("🚀 NAHRAŤ VYBRANÝ SÚBOR"):
+                    if supabase:
+                        try:
+                            subor_bytes = subor_na_nahratie.read()
+                            povodny_nazov = subor_na_nahratie.name
+                            cisty_nazov = f"{int(datetime.now().timestamp())}_{povodny_nazov.replace(' ', '_')}"
+                            
+                            res = supabase.storage.from_("parobci-media").upload(
+                                path=cisty_nazov,
+                                file=subor_bytes,
+                                file_options={"content-type": subor_na_nahratie.type}
+                            )
+                            
+                            if res:
+                                st.success(f"Súbor '{povodny_nazov}' bol úspešne nahraný! 🎉")
+                                st.rerun()
+                        except Exception as e:
+                            st.error(f"Chyba pri nahrávaní súboru: {e}")
+                    else:
+                        st.error("Chyba: Pripojenie k Supabase nie je aktívne.")
+            
+            st.markdown("<hr style='border-color: rgba(212,175,55,0.3); margin-top: 30px;'>", unsafe_allow_html=True)
+            st.subheader("📸 Všetky médiá v galérii")
+            
+            vsetky_media = nacti_vsetky_media()
+            
+            if vsetky_media:
+                st.write(f"**Počet súborov:** {len(vsetky_media)}")
+                
+                for idx, media_item in enumerate(vsetky_media):
+                    col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
+                    
+                    with col1:
+                        st.write(f"📄 **{media_item['nazov'][:40]}...**" if len(media_item['nazov']) > 40 else f"📄 **{media_item['nazov']}**")
+                    
+                    with col2:
+                        st.write(f"🏷️ {media_item['typ']}")
+                    
+                    with col3:
+                        velkost_kb = media_item['velkost'] / 1024
+                        st.write(f"💾 {velkost_kb:.1f} KB")
+                    
+                    with col4:
+                        if st.button("🗑️", key=f"delete_media_{idx}"):
+                            if supabase:
+                                try:
+                                    supabase.storage.from_("parobci-media").remove([media_item['nazov']])
+                                    st.success(f"Súbor '{media_item['nazov']}' vymazaný!")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Chyba pri vymazávaní: {e}")
+            else:
+                st.info("Galéria je zatiaľ prázdna.")
+        
+        # --- TAB 4: PRIDAŤ UDALOSŤ ---
+        with t4:
+            with st.form("add_manual"):
+                st.subheader("➕ Manuálne pridať akciu")
+                
+                d = st.date_input("Dátum akcie", value=datetime.today())
+                t_time = st.time_input("Čas začiatku", value=datetime.now().time())
+                m = st.text_input("Meno a priezvisko / Názov akcie")
+                tel_cislo = st.text_input("Telefónne číslo")
+                em_adresa = st.text_input("E-mail")
+                dohodnuta_cena = st.text_input("Dohodnutá cena (napr. 500.00 €)", value="0.00 €")
+                det = st.text_area("Presná adresa konania (mesto/sála) a iné detaily")
+                
+                if st.form_submit_button("Uložiť do kalendára"):
+                    if not m:
+                        st.warning("Zadajte aspoň názov alebo meno akcie.")
+                    else:
+                        nova_akcia = {
+                            "id": str(datetime.now().timestamp()), 
+                            "datum": str(d), 
+                            "cas": t_time.strftime('%H:%M'),
+                            "meno": m, 
+                            "tel": tel_cislo,
+                            "email": em_adresa,
+                            "vypocitana_cena": dohodnuta_cena,
+                            "detaily": det, 
+                            "stav": "schvalene"
+                        }
+                        if supabase:
+                            try:
+                                supabase.table("kalendar").insert(nova_akcia).execute()
+                                st.session_state['db_data'] = nacti_data()
+                                st.success("Akcia bola úspešne pridaná do kalendára!")
+                                st.rerun()
+                            except Exception as e:
+                                st.error(f"Chyba pridania na Supabase: {e}")
+
+st.markdown(f'''
+<div style="text-align:center; margin-top:50px; color:#ccc; line-height: 1.6;">
+    <b>Podpora</b><br>
+    <b>Tel. číslo:</b> 0944 757 122<br>
+    <b>E-mail:</b> kollarstevo55@gmail.com
+</div>
+''', unsafe_allow_html=True)
