@@ -104,19 +104,10 @@ def apply_style():
 
         .dostupnost-box {{
             background: rgba(0, 0, 0, 0.85);
-            border: 2px solid #d4af37;
+            border: 2px solid #f44336;
             padding: 20px;
             border-radius: 15px;
             margin: 20px 0;
-        }}
-
-        .dostupnost-item {{
-            display: flex;
-            align-items: center;
-            gap: 10px;
-            padding: 8px;
-            margin: 5px 0;
-            font-size: 0.95rem;
         }}
 
         .stForm {{ background-color: rgba(0, 0, 0, 0.8) !important; border: 2px solid #d4af37 !important; border-radius: 20px; padding: 30px; }}
@@ -226,50 +217,26 @@ def nacti_vsetky_media():
             pass
     return subbory_list
 
-# Funkcia na zobrazenie dostupnosti
-def zobraz_dostupnost(db_data, dni_dopredu=60):
-    obsadene_datumy = set()
+# Funkcia na zobrazenie obsadených dní
+def zobraz_obsadene_dni(db_data):
+    obsadene_datumy = []
     for event in db_data:
         if event.get('stav') == 'schvalene':
             try:
                 event_date = datetime.strptime(event['datum'], '%Y-%m-%d').date()
-                obsadene_datumy.add(event_date)
+                obsadene_datumy.append(event_date)
             except:
                 pass
     
-    dnes = datetime.now().date()
+    obsadene_datumy.sort()
+    
+    if not obsadene_datumy:
+        return None
     
     html = '<div class="dostupnost-box">'
-    html += '<h4 style="color: #d4af37; text-align: center; margin-bottom: 15px;">📅 Dostupnosť nasledujúcich 60 dní</h4>'
-    
-    volne_dni = []
-    obsadene_dni = []
-    
-    for i in range(dni_dopredu):
-        datum = dnes + timedelta(days=i)
-        if datum in obsadene_datumy:
-            obsadene_dni.append(datum)
-        else:
-            volne_dni.append(datum)
-    
-    # Zobraz voľné dni
-    if volne_dni:
-        html += '<div style="margin-bottom: 15px;">'
-        html += '<h5 style="color: #4CAF50; margin-bottom: 10px;">🟢 Voľné dni:</h5>'
-        dni_text = ", ".join([d.strftime("%d.%m.%Y") for d in volne_dni[:10]])  # Prvých 10
-        if len(volne_dni) > 10:
-            dni_text += f", ... a ďalších {len(volne_dni) - 10}"
-        html += f'<p style="color: #fff; margin: 0; font-size: 0.9rem;">{dni_text}</p>'
-        html += '</div>'
-    
-    # Zobraz obsadené dni
-    if obsadene_dni:
-        html += '<div>'
-        html += '<h5 style="color: #f44336; margin-bottom: 10px;">🔴 Obsadené dni:</h5>'
-        dni_text = ", ".join([d.strftime("%d.%m.%Y") for d in obsadene_dni])
-        html += f'<p style="color: #fff; margin: 0; font-size: 0.9rem;">{dni_text}</p>'
-        html += '</div>'
-    
+    html += '<h4 style="color: #f44336; text-align: center; margin-bottom: 15px;">🔴 Obsadené dni:</h4>'
+    dni_text = ", ".join([d.strftime("%d.%m.%Y") for d in obsadene_datumy])
+    html += f'<p style="color: #fff; margin: 0; font-size: 0.95rem; text-align: center;">{dni_text}</p>'
     html += '</div>'
     return html
 
@@ -404,9 +371,10 @@ if menu == "🎸 Rezervácia":
         </div>
     """, unsafe_allow_html=True)
     
-    # --- DOSTUPNOSŤ ---
-    dostupnost_html = zobraz_dostupnost(st.session_state['db_data'])
-    st.markdown(dostupnost_html, unsafe_allow_html=True)
+    # --- OBSADENÉ DNI ---
+    obsadene_html = zobraz_obsadene_dni(st.session_state['db_data'])
+    if obsadene_html:
+        st.markdown(obsadene_html, unsafe_allow_html=True)
     
     # --- REZERVAČNÝ FORMULÁR ---
     with st.form("main_booking"):
