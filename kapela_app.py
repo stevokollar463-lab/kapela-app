@@ -30,6 +30,7 @@ CENA_STOLY_HODINA = 120
 CENA_APARATURA = 100
 CENA_ZA_KM = 0.50
 
+
 @st.cache_resource
 def get_supabase_client():
     try:
@@ -38,7 +39,9 @@ def get_supabase_client():
         st.error(f"❌ Nepodarilo sa vytvoriť Supabase klienta: {e}")
         return None
 
+
 supabase = get_supabase_client()
+
 
 def apply_style():
     st.markdown(f"""
@@ -51,6 +54,12 @@ def apply_style():
             background-attachment: fixed;
             image-rendering: -webkit-optimize-contrast;
             color: #ffffff;
+        }}
+
+        [data-testid="collapsedSidebarNoOverlay"],
+        [data-testid="stSidebar"],
+        button[data-testid="stSidebarCollapseButton"] {{
+            display: none !important;
         }}
 
         [data-testid="stToolbar"] {{
@@ -91,6 +100,45 @@ def apply_style():
             box-shadow: 0 0 15px rgba(212, 175, 55, 0.20);
         }}
 
+        /* FOOTER S TLAČIDLAMI */
+        .footer-buttons {{
+            display: flex;
+            justify-content: space-around;
+            align-items: center;
+            gap: 10px;
+            margin-top: 60px;
+            padding: 20px 0;
+            border-top: 2px solid rgba(212, 175, 55, 0.3);
+            position: relative;
+            z-index: 10;
+        }}
+
+        .footer-btn {{
+            background-color: #d4af37;
+            color: black;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 25px;
+            font-weight: bold;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            flex: 1;
+            max-width: 180px;
+            text-align: center;
+            box-shadow: 0 4px 10px rgba(0,0,0,0.5);
+        }}
+
+        .footer-btn:hover {{
+            background-color: #FFD700;
+            transform: translateY(-2px);
+            box-shadow: 0 6px 15px rgba(212, 175, 55, 0.4);
+        }}
+
+        .footer-btn:active {{
+            transform: translateY(0px);
+        }}
+
+        /* EXPANDOVACIA SEKCIA */
         .expandable-section {{
             background: rgba(0, 0, 0, 0.9);
             border: 2px solid #d4af37;
@@ -167,6 +215,34 @@ def apply_style():
             margin-top: 5px;
         }}
 
+        .recenzia-item {{
+            margin-bottom: 15px;
+            padding: 15px;
+            background: rgba(212, 175, 55, 0.05);
+            border-left: 4px solid #d4af37;
+            border-radius: 8px;
+        }}
+
+        .recenzia-meno {{
+            font-weight: bold;
+            color: #d4af37;
+            font-size: 1rem;
+        }}
+
+        .recenzia-hvezdicky {{
+            color: #FFD700;
+            font-size: 1.1rem;
+            margin-top: 5px;
+        }}
+
+        .recenzia-text {{
+            color: #ccc;
+            font-style: italic;
+            margin-top: 10px;
+            font-size: 0.95rem;
+            line-height: 1.5;
+        }}
+
         .o-nas-box {{
             background: rgba(0, 0, 0, 0.85);
             border: 2px solid #d4af37;
@@ -239,52 +315,9 @@ def apply_style():
             box-shadow: 0 0 18px #d4af37 !important;
             border-color: #ffffff !important;
         }}
-
-        /* PEVNÝ ĽAVÝ PANEL */
-        .fixed-left-panel {{
-            position: fixed;
-            top: 0;
-            left: 0;
-            width: 260px;
-            height: 100vh;
-            background: rgba(0,0,0,0.92);
-            border-right: 2px solid #d4af37;
-            z-index: 9999;
-            padding: 24px 16px;
-            box-shadow: 4px 0 20px rgba(0,0,0,0.45);
-            overflow-y: auto;
-        }}
-        .fixed-left-panel h3 {{
-            color: #d4af37;
-            text-align: center;
-            margin-bottom: 18px;
-            margin-top: 0;
-        }}
-        .fixed-left-panel .contact {{
-            color: #ddd;
-            font-size: 0.95rem;
-            line-height: 1.6;
-            margin-top: 16px;
-        }}
-
-        /* posun hlavného obsahu doprava */
-        .main .block-container {{
-            margin-left: 280px !important;
-            max-width: 980px !important;
-        }}
-
-        /* pri menších obrazovkách panel skryjeme */
-        @media (max-width: 900px) {{
-            .fixed-left-panel {{
-                display: none;
-            }}
-            .main .block-container {{
-                margin-left: 0 !important;
-                max-width: 100% !important;
-            }}
-        }}
         </style>
     """, unsafe_allow_html=True)
+
 
 def nacti_data():
     if supabase:
@@ -295,6 +328,7 @@ def nacti_data():
             st.error(f"Chyba načítania zo Supabase: {e}")
     return []
 
+
 def nacti_recenzie():
     if supabase:
         try:
@@ -303,6 +337,7 @@ def nacti_recenzie():
         except Exception:
             pass
     return []
+
 
 def nacti_media():
     vysledky = {"fotky": [], "videa": []}
@@ -326,6 +361,7 @@ def nacti_media():
             pass
     return vysledky
 
+
 def nacti_vsetky_media():
     subbory_list = []
     if supabase:
@@ -348,8 +384,11 @@ def nacti_vsetky_media():
             pass
     return subbory_list
 
+
 def zobraz_kalendar_obsadenosti(db_data, rok, mesiac):
+    """Vykreslí mesiac, kde obsadené (schválené) dni sú označené X."""
     obsadene = set()
+
     for event in db_data:
         if event.get("stav") == "schvalene":
             try:
@@ -392,11 +431,13 @@ def zobraz_kalendar_obsadenosti(db_data, rok, mesiac):
     """
     return html
 
+
 def hvezdicky_html(pocet):
     return "⭐" * pocet + "☆" * (5 - pocet)
 
-def zobraz_footer_tlacidla():
-    col1, col2 = st.columns(2)
+
+def zobraz_footer_tlacidla(is_recenzie_page=False):
+    col1, col2, col3 = st.columns(3)
 
     with col1:
         if st.button("❓ FAQ", key=f"btn_faq_{st.session_state.get('page_id', 'main')}", use_container_width=True):
@@ -404,6 +445,11 @@ def zobraz_footer_tlacidla():
             st.rerun()
 
     with col2:
+        if st.button("⭐ RECENZIE", key=f"btn_rec_{st.session_state.get('page_id', 'main')}", use_container_width=True):
+            st.session_state[f"expand_rec_{st.session_state.get('page_id', 'main')}"] = not st.session_state.get(f"expand_rec_{st.session_state.get('page_id', 'main')}", False)
+            st.rerun()
+
+    with col3:
         if st.button("📞 KONTAKT", key=f"btn_kon_{st.session_state.get('page_id', 'main')}", use_container_width=True):
             st.session_state[f"expand_kon_{st.session_state.get('page_id', 'main')}"] = not st.session_state.get(f"expand_kon_{st.session_state.get('page_id', 'main')}", False)
             st.rerun()
@@ -413,18 +459,9 @@ def zobraz_footer_tlacidla():
         st.markdown('<div class="section-title">❓ Často kladené otázky</div>', unsafe_allow_html=True)
 
         faq_otazky = [
-            {
-                "otazka": "Ako dlho hráte minimálne?",
-                "odpoved": "Minimálna doba hrania je 1 hodina. Nižšie doby sa neposkytujú."
-            },
-            {
-                "otazka": "Aká je minimálna doba rezervácie?",
-                "odpoved": "Rezervácia musí byť uskutočnená minimálne 1 mesiac vopred. To nám umožňuje správne si naplánovať našu kapelu."
-            },
-            {
-                "otazka": "Ako sa počíta cena?",
-                "odpoved": f"Rodinná oslava: {CENA_OSLAVA_HODINA} € za hodinu | Svadobný sprievod: {CENA_SPRIEVOD_ZAKLAD} € za 2 hodiny | Hranie pomedzi stoly: {CENA_STOLY_HODINA} € za hodinu + doprava {CENA_ZA_KM} € za km"
-            }
+            {"otazka": "Ako dlho hráte minimálne?", "odpoved": "Minimálna doba hrania je 1 hodina. Nižšie doby sa neposkytujú."},
+            {"otazka": "Aká je minimálna doba rezervácie?", "odpoved": "Rezervácia musí byť uskutočnená minimálne 1 mesiac vopred. To nám umožňuje správne si naplánovať našu kapelu."},
+            {"otazka": "Ako sa počíta cena?", "odpoved": f"Rodinná oslava: {CENA_OSLAVA_HODINA} € za hodinu | Svadobný sprievod: {CENA_SPRIEVOD_ZAKLAD} € za 2 hodiny | Hranie pomedzi stoly: {CENA_STOLY_HODINA} € za hodinu + doprava {CENA_ZA_KM} € za km"}
         ]
 
         for faq in faq_otazky:
@@ -434,6 +471,52 @@ def zobraz_footer_tlacidla():
                 <div class="faq-odpoved">{faq['odpoved']}</div>
             </div>
             """, unsafe_allow_html=True)
+
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    if st.session_state.get(f"expand_rec_{st.session_state.get('page_id', 'main')}", False):
+        st.markdown('<div class="expandable-section">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">⭐ Zanechaj svoj ohlas</div>', unsafe_allow_html=True)
+
+        with st.form(f"nova_recenzia_{st.session_state.get('page_id', 'main')}"):
+            typ_mena = st.radio("Ako sa chceš reprezentovať?", ["❌ Anonymne", "✅ Pod mojim menom"], horizontal=True, key=f"radio_rec_{st.session_state.get('page_id', 'main')}")
+
+            meno = ""
+            if typ_mena == "✅ Pod mojim menom":
+                meno = st.text_input("Tvoje meno", placeholder="Napíš svoje meno...", key=f"input_meno_{st.session_state.get('page_id', 'main')}")
+                if not meno:
+                    meno = "Anonymný"
+            else:
+                meno = "Anonymný"
+
+            hvezdicky = st.slider("Ako hodnotíš našu kapelu? (1-5 hviezd)", min_value=1, max_value=5, value=5, key=f"slider_rec_{st.session_state.get('page_id', 'main')}")
+            text = st.text_area("Tvoj komentár", placeholder="Napíš nám tvoj názor na naše vystúpenie...", height=120, key=f"textarea_rec_{st.session_state.get('page_id', 'main')}")
+
+            if st.form_submit_button("🚀 ODOSLAŤ RECENZIU", key=f"submit_rec_{st.session_state.get('page_id', 'main')}"):
+                if not text or len(text) < 5:
+                    st.warning("⚠️ Napíš prosím aspoň pár slov do komentára!")
+                else:
+                    nova_recenzia = {
+                        "id": str(datetime.now().timestamp()),
+                        "meno": meno,
+                        "hvezdicky": hvezdicky,
+                        "text": text,
+                        "created_at": datetime.now().isoformat()
+                    }
+
+                    if supabase:
+                        try:
+                            res = supabase.table("recenzie").insert(nova_recenzia).execute()
+                            if res.data:
+                                st.success("✅ Ďakujeme za tvoj ohlas! 🎉")
+                                st.balloons()
+                                st.rerun()
+                            else:
+                                st.error("Chyba: Recenzija sa nepodarila uložiť.")
+                        except Exception as e:
+                            st.error(f"Chyba: {e}")
+                    else:
+                        st.error("Chyba: Databáza Supabase nie je pripojená!")
 
         st.markdown('</div>', unsafe_allow_html=True)
 
@@ -463,6 +546,7 @@ def zobraz_footer_tlacidla():
 
         st.markdown('</div>', unsafe_allow_html=True)
 
+
 def posli_upozornenie(text):
     try:
         if PB_API_KEY:
@@ -472,6 +556,7 @@ def posli_upozornenie(text):
     except Exception as e:
         st.error(f"⚠️ Pushbullet neodoslal správu! Chyba: {e}")
     return False
+
 
 def posli_email_zakaznikovi(to_email, meno_klienta, datum_akcie, cas_akcie, typ_vystupenia, celkova_cena, detaily_miesta):
     if not to_email or "@" not in to_email or not SENDER_PASSWORD:
@@ -516,43 +601,13 @@ E-mail: parobciovcanske@gmail.com
         st.warning(f"Nepodarilo sa odoslať potvrdzujúci e-mail zákazníkovi: {e}")
         return False
 
+
 st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎻", layout="centered", initial_sidebar_state="collapsed")
 apply_style()
 
-# --- pevný ľavý panel (HTML) ---
-st.markdown("""
-<div class="fixed-left-panel">
-    <h3>📌 Rýchle menu</h3>
-</div>
-""", unsafe_allow_html=True)
-
-# --- tlačidlo v ľavom paneli cez st.empty + CSS pozícia ---
-left_slot = st.empty()
-left_slot.markdown("""
-<div style="position:fixed; left:16px; top:95px; width:228px; z-index:10000;">
-""", unsafe_allow_html=True)
-
-if "open_recenzie_form" not in st.session_state:
-    st.session_state["open_recenzie_form"] = False
-
-# Toto tlačidlo sa vykreslí normálne, ale vizuálne ostane vľavo nad obsahom.
-if st.button("⭐ Pridať recenziu", key="fixed_add_review"):
-    st.session_state["open_recenzie_form"] = True
-    st.rerun()
-
-st.markdown("""
-<div style="position:fixed; left:16px; top:160px; width:228px; z-index:10000; color:#ddd; line-height:1.6;">
-<hr style="border-color: rgba(212,175,55,0.35);">
-<b>Kontakt</b><br>
-📞 0944 757 122<br>
-📧 parobciovcanske@gmail.com<br>
-📍 Obec Ovčie, Slovensko
-</div>
-""", unsafe_allow_html=True)
-
 menu = st.radio(
     "NAVIGÁCIA",
-    ["🎸 Rezervácia", "💰 Cenník", "ℹ️ O nás", "📸 Galéria", "🔐 Administrácia"],
+    ["🎸 Rezervácia", "💰 Cenník", "ℹ️ O nás", "📸 Galéria", "⭐ Recenzie", "🔐 Administrácia"],
     horizontal=True,
     label_visibility="collapsed"
 )
@@ -561,56 +616,6 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 if 'db_data' not in st.session_state:
     st.session_state['db_data'] = nacti_data()
-
-# --- globálny formulár recenzie ---
-if st.session_state["open_recenzie_form"]:
-    st.markdown("## ⭐ Pridať recenziu")
-    with st.form("global_recenzia_form"):
-        typ_mena = st.radio(
-            "Ako sa chceš reprezentovať?",
-            ["❌ Anonymne", "✅ Pod mojim menom"],
-            horizontal=True
-        )
-
-        meno = "Anonymný"
-        if typ_mena == "✅ Pod mojim menom":
-            m = st.text_input("Tvoje meno")
-            if m:
-                meno = m
-
-        hvezdicky = st.slider("Hodnotenie (1-5)", 1, 5, 5)
-        text = st.text_area("Tvoj komentár", height=120)
-
-        c1, c2 = st.columns(2)
-        odoslat = c1.form_submit_button("🚀 Odoslať recenziu")
-        zavriet = c2.form_submit_button("❌ Zavrieť")
-
-        if zavriet:
-            st.session_state["open_recenzie_form"] = False
-            st.rerun()
-
-        if odoslat:
-            if not text or len(text) < 5:
-                st.warning("⚠️ Napíš prosím aspoň pár slov do komentára!")
-            else:
-                nova_recenzia = {
-                    "id": str(datetime.now().timestamp()),
-                    "meno": meno,
-                    "hvezdicky": hvezdicky,
-                    "text": text,
-                    "created_at": datetime.now().isoformat()
-                }
-                if supabase:
-                    try:
-                        res = supabase.table("recenzie").insert(nova_recenzia).execute()
-                        if res.data:
-                            st.success("✅ Ďakujeme za recenziu!")
-                            st.session_state["open_recenzie_form"] = False
-                            st.rerun()
-                        else:
-                            st.error("Recenziu sa nepodarilo uložiť.")
-                    except Exception as e:
-                        st.error(f"Chyba: {e}")
 
 # --- 1. REZERVÁCIA ---
 if menu == "🎸 Rezervácia":
@@ -679,27 +684,12 @@ if menu == "🎸 Rezervácia":
         col_m1, col_m2 = st.columns(2)
 
         with col_m1:
-            vybrany_rok = st.number_input(
-                "Rok",
-                min_value=dnes.year,
-                max_value=dnes.year + 3,
-                value=dnes.year,
-                step=1
-            )
+            vybrany_rok = st.number_input("Rok", min_value=dnes.year, max_value=dnes.year + 3, value=dnes.year, step=1)
 
         with col_m2:
-            vybrany_mesiac = st.selectbox(
-                "Mesiac",
-                options=list(range(1, 13)),
-                index=dnes.month - 1,
-                format_func=lambda m: f"{m:02d}"
-            )
+            vybrany_mesiac = st.selectbox("Mesiac", options=list(range(1, 13)), index=dnes.month - 1, format_func=lambda m: f"{m:02d}")
 
-        kal_html = zobraz_kalendar_obsadenosti(
-            st.session_state['db_data'],
-            int(vybrany_rok),
-            int(vybrany_mesiac)
-        )
+        kal_html = zobraz_kalendar_obsadenosti(st.session_state['db_data'], int(vybrany_rok), int(vybrany_mesiac))
         st.markdown(kal_html, unsafe_allow_html=True)
 
     with st.form("main_booking"):
@@ -801,14 +791,11 @@ elif menu == "💰 Cenník":
             </table>
         </div>
     """, unsafe_allow_html=True)
-
     zobraz_footer_tlacidla()
 
-# --- 3. O NÁS ---
 elif menu == "ℹ️ O nás":
     st.session_state['page_id'] = 'onas'
     st.title("ℹ️ O nás")
-
     st.markdown("""
         <div class="o-nas-box">
             <h3 style="color: #d4af37; text-align: center;">🎻 Sme Ovčanske Parobci</h3>
@@ -817,9 +804,7 @@ elif menu == "ℹ️ O nás":
                     Sme ľudová kapela založená v roku <strong>2020</strong>, ktorá sa špecializuje na vytváranie nezabudnuteľných zážitkov
                     na najrôznejších podujatiach. Naša päťčlenná kapela hrá s vášňou a energiou tradičnú ľudovú hudbu.
                 </p>
-                <p>
-                    <strong>Čo nám robíme:</strong>
-                </p>
+                <p><strong>Čo nám robíme:</strong></p>
                 <ul style="color: #ccc;">
                     <li>🎂 Jubileá a oslavy narodenín</li>
                     <li>👰 Svadobné sprievody a sprevody novomanželov</li>
@@ -831,14 +816,7 @@ elif menu == "ℹ️ O nás":
     """, unsafe_allow_html=True)
 
     st.subheader("🎼 Naši členovia")
-
-    clenovia = [
-        {"meno": "Akordeón", "pocet": 2},
-        {"meno": "Husle", "pocet": 1},
-        {"meno": "Bubon", "pocet": 1},
-        {"meno": "Saxofón", "pocet": 1},
-    ]
-
+    clenovia = [{"meno": "Akordeón", "pocet": 2}, {"meno": "Husle", "pocet": 1}, {"meno": "Bubon", "pocet": 1}, {"meno": "Saxofón", "pocet": 1}]
     for clen in clenovia:
         st.markdown(f"""
             <div class="clenovia-box">
@@ -846,45 +824,56 @@ elif menu == "ℹ️ O nás":
                 <p style="margin: 5px 0; color: #ccc;">{clen['pocet']} {'člen' if clen['pocet'] == 1 else 'členovia'}</p>
             </div>
         """, unsafe_allow_html=True)
-
     zobraz_footer_tlacidla()
 
-# --- 4. GALÉRIA ---
 elif menu == "📸 Galéria":
     st.session_state['page_id'] = 'galeria'
     st.title("📸 Galéria a Videá")
-
     media = nacti_media()
 
     if media["videa"]:
         st.subheader("🎥 Videá z našich akcií")
         col_v1, col_v2 = st.columns(2)
         for idx, video_url in enumerate(media["videa"]):
-            if idx % 2 == 0:
-                with col_v1:
-                    st.video(video_url)
-            else:
-                with col_v2:
-                    st.video(video_url)
+            with (col_v1 if idx % 2 == 0 else col_v2):
+                st.video(video_url)
         st.markdown("<hr style='border-color: rgba(212,175,55,0.3);'>", unsafe_allow_html=True)
 
     st.subheader("🖼️ Fotogaléria")
-
     if media["fotky"]:
         col_img1, col_img2 = st.columns(2)
         for idx, f in enumerate(media["fotky"]):
-            if idx % 2 == 0:
-                with col_img1:
-                    st.image(f, use_container_width=True)
-            else:
-                with col_img2:
-                    st.image(f, use_container_width=True)
+            with (col_img1 if idx % 2 == 0 else col_img2):
+                st.image(f, use_container_width=True)
     else:
         st.info("📸 Galéria je zatiaľ prázdna. Fotky budú pridané čoskoro.")
 
     zobraz_footer_tlacidla()
 
-# --- 5. ADMIN ---
+elif menu == "⭐ Recenzie":
+    st.session_state['page_id'] = 'recenzie'
+    st.title("⭐ Ohlasy našich zákazníkov")
+    recenzie = nacti_recenzie()
+
+    if recenzie:
+        st.subheader(f"💬 {len(recenzie)} ohlasov od našich zákazníkov")
+        for rec in recenzie:
+            st.markdown(f"""
+            <div style="background: rgba(0, 0, 0, 0.8); border: 2px solid #d4af37; padding: 15px; border-radius: 12px; margin: 12px 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; color: #d4af37;">
+                    <span style="font-weight: bold;">{rec.get('meno', 'Anonymný')}</span>
+                    <span style="font-size: 1.3rem; color: #FFD700;">{hvezdicky_html(rec.get('hvezdicky', 5))}</span>
+                </div>
+                <div style="color: #ccc; font-style: italic; margin-top: 10px; line-height: 1.5;">"{rec.get('text', '')}"</div>
+                <div style="font-size: 0.85rem; color: #999; margin-top: 8px;">📅 {rec.get('created_at', '')[:10]}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        st.markdown("<hr style='border-color: rgba(212,175,55,0.3); margin: 30px 0;'>", unsafe_allow_html=True)
+    else:
+        st.info("Zatiaľ tu nie sú žiadne recenzie. Buď prvý a nechaj svoj ohlas! 😊")
+
+    zobraz_footer_tlacidla(is_recenzie_page=True)
+
 else:
     st.session_state['page_id'] = 'admin'
     col_title, col_logout = st.columns([3, 1])
@@ -912,7 +901,6 @@ else:
                 st.rerun()
 
         t1, t2, t3, t4, t5 = st.tabs(["📩 Nové dopyty", "📅 Kalendár", "📁 Sprava medii", "➕ Pridat udalost", "⭐ Recenzie"])
-
         db = nacti_data()
 
         with t1:
@@ -967,14 +955,7 @@ else:
                             nove_detaily = st.text_area("Miesto/Poznámka", value=info_mesto)
 
                             if st.form_submit_button("Uložiť zmeny"):
-                                upravene = {
-                                    "datum": novy_datum,
-                                    "cas": novy_cas,
-                                    "meno": nove_meno,
-                                    "tel": novy_tel,
-                                    "email": novy_email,
-                                    "detaily": nove_detaily
-                                }
+                                upravene = {"datum": novy_datum, "cas": novy_cas, "meno": nove_meno, "tel": novy_tel, "email": novy_email, "detaily": nove_detaily}
                                 if supabase:
                                     try:
                                         supabase.table("kalendar").update(upravene).eq("id", a['id']).execute()
@@ -1028,14 +1009,7 @@ else:
                             nove_detaily = st.text_area("Miesto/Poznámka", value=info_mesto)
 
                             if st.form_submit_button("Uložiť zmeny"):
-                                upravene = {
-                                    "datum": novy_datum,
-                                    "cas": novy_cas,
-                                    "meno": nove_meno,
-                                    "tel": novy_tel,
-                                    "email": novy_email,
-                                    "detaily": nove_detaily
-                                }
+                                upravene = {"datum": novy_datum, "cas": novy_cas, "meno": nove_meno, "tel": novy_tel, "email": novy_email, "detaily": nove_detaily}
                                 if supabase:
                                     try:
                                         supabase.table("kalendar").update(upravene).eq("id", a['id']).execute()
@@ -1091,14 +1065,11 @@ else:
 
                     with col1:
                         st.write(f"📄 **{media_item['nazov'][:40]}...**" if len(media_item['nazov']) > 40 else f"📄 **{media_item['nazov']}**")
-
                     with col2:
                         st.write(f"🏷️ {media_item['typ']}")
-
                     with col3:
                         velkost_kb = media_item['velkost'] / 1024
                         st.write(f"💾 {velkost_kb:.1f} KB")
-
                     with col4:
                         if st.button("🗑️", key=f"delete_media_{idx}"):
                             if supabase:
@@ -1114,7 +1085,6 @@ else:
         with t4:
             with st.form("add_manual"):
                 st.subheader("➕ Manuálne pridať akciu")
-
                 d = st.date_input("Dátum akcie", value=datetime.today())
                 t_time = st.time_input("Čas začiatku", value=datetime.now().time())
                 m = st.text_input("Meno a priezvisko / Názov akcie")
