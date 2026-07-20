@@ -1,5 +1,3 @@
-Copilot Chat
-Add review functionality in recenzies section
 import streamlit as st
 import smtplib
 from email.mime.multipart import MIMEMultipart
