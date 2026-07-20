@@ -5,7 +5,6 @@ from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 from pushbullet import Pushbullet
 from supabase import create_client
-import calendar
 
 # --- BEZPEČNÁ KONFIGURÁCIA (IBA st.secrets) ---
 # ⚠️ VŠETKY CITLIVÉ ÚDAJE MUSIA BYŤ V st.secrets - NIKDY V KÓDE!
@@ -103,7 +102,7 @@ def apply_style():
             box-shadow: 0 0 15px rgba(212, 175, 55, 0.20);
         }}
 
-        .calendar-box {{
+        .dostupnost-box {{
             background: rgba(0, 0, 0, 0.85);
             border: 2px solid #d4af37;
             padding: 20px;
@@ -111,33 +110,13 @@ def apply_style():
             margin: 20px 0;
         }}
 
-        .calendar-legend {{
-            display: flex;
-            gap: 20px;
-            justify-content: center;
-            flex-wrap: wrap;
-            margin: 15px 0;
-            font-size: 0.9rem;
-        }}
-
-        .legend-item {{
+        .dostupnost-item {{
             display: flex;
             align-items: center;
-            gap: 8px;
-        }}
-
-        .legend-free {{
-            width: 20px;
-            height: 20px;
-            background-color: #4CAF50;
-            border-radius: 3px;
-        }}
-
-        .legend-busy {{
-            width: 20px;
-            height: 20px;
-            background-color: #f44336;
-            border-radius: 3px;
+            gap: 10px;
+            padding: 8px;
+            margin: 5px 0;
+            font-size: 0.95rem;
         }}
 
         .stForm {{ background-color: rgba(0, 0, 0, 0.8) !important; border: 2px solid #d4af37 !important; border-radius: 20px; padding: 30px; }}
@@ -247,8 +226,8 @@ def nacti_vsetky_media():
             pass
     return subbory_list
 
-# Funkcia na zobrazenie kalendára s obsadenosťou
-def zobraz_kalendar_obsadenosti(db_data, rok, mesiac):
+# Funkcia na zobrazenie dostupnosti
+def zobraz_dostupnost(db_data, dni_dopredu=60):
     obsadene_datumy = set()
     for event in db_data:
         if event.get('stav') == 'schvalene':
@@ -258,51 +237,40 @@ def zobraz_kalendar_obsadenosti(db_data, rok, mesiac):
             except:
                 pass
     
-    # Vytvor HTML kalendár
-    cal = calendar.monthcalendar(rok, mesiac)
-    mesiac_meno = calendar.month_name[mesiac]
+    dnes = datetime.now().date()
     
-    html = f"""
-    <div class="calendar-box">
-        <h3 style="color: #d4af37; text-align: center; margin-bottom: 20px;">📅 Kalendár obsadenosti - {mesiac_meno} {rok}</h3>
-        
-        <div class="calendar-legend">
-            <div class="legend-item">
-                <div class="legend-free"></div>
-                <span>Voľný deň</span>
-            </div>
-            <div class="legend-item">
-                <div class="legend-busy"></div>
-                <span>Obsadený deň</span>
-            </div>
-        </div>
-        
-        <table style="width: 100%; border-collapse: collapse; text-align: center; color: #fff;">
-            <tr style="background-color: #d4af37; color: black;">
-                <th style="padding: 10px;">Po</th>
-                <th style="padding: 10px;">Ut</th>
-                <th style="padding: 10px;">St</th>
-                <th style="padding: 10px;">Št</th>
-                <th style="padding: 10px;">Pi</th>
-                <th style="padding: 10px;">So</th>
-                <th style="padding: 10px;">Ne</th>
-            </tr>
-    """
+    html = '<div class="dostupnost-box">'
+    html += '<h4 style="color: #d4af37; text-align: center; margin-bottom: 15px;">📅 Dostupnosť nasledujúcich 60 dní</h4>'
     
-    for week in cal:
-        html += "<tr>"
-        for day in week:
-            if day == 0:
-                html += "<td style='padding: 10px; background-color: rgba(0,0,0,0.3);'></td>"
-            else:
-                datum = datetime(rok, mesiac, day).date()
-                if datum in obsadene_datumy:
-                    html += f"<td style='padding: 10px; background-color: #f44336; border: 1px solid #d4af37; border-radius: 5px;'><strong>{day}</strong></td>"
-                else:
-                    html += f"<td style='padding: 10px; background-color: #4CAF50; border: 1px solid #d4af37; border-radius: 5px;'><strong>{day}</strong></td>"
-        html += "</tr>"
+    volne_dni = []
+    obsadene_dni = []
     
-    html += "</table></div>"
+    for i in range(dni_dopredu):
+        datum = dnes + timedelta(days=i)
+        if datum in obsadene_datumy:
+            obsadene_dni.append(datum)
+        else:
+            volne_dni.append(datum)
+    
+    # Zobraz voľné dni
+    if volne_dni:
+        html += '<div style="margin-bottom: 15px;">'
+        html += '<h5 style="color: #4CAF50; margin-bottom: 10px;">🟢 Voľné dni:</h5>'
+        dni_text = ", ".join([d.strftime("%d.%m.%Y") for d in volne_dni[:10]])  # Prvých 10
+        if len(volne_dni) > 10:
+            dni_text += f", ... a ďalších {len(volne_dni) - 10}"
+        html += f'<p style="color: #fff; margin: 0; font-size: 0.9rem;">{dni_text}</p>'
+        html += '</div>'
+    
+    # Zobraz obsadené dni
+    if obsadene_dni:
+        html += '<div>'
+        html += '<h5 style="color: #f44336; margin-bottom: 10px;">🔴 Obsadené dni:</h5>'
+        dni_text = ", ".join([d.strftime("%d.%m.%Y") for d in obsadene_dni])
+        html += f'<p style="color: #fff; margin: 0; font-size: 0.9rem;">{dni_text}</p>'
+        html += '</div>'
+    
+    html += '</div>'
     return html
 
 # --- NOTIFIKÁCIE ---
@@ -436,31 +404,9 @@ if menu == "🎸 Rezervácia":
         </div>
     """, unsafe_allow_html=True)
     
-    # --- KALENDÁR OBSADENOSTI ---
-    st.markdown("<h4 style='color: #d4af37; text-align: center;'>📅 Kontrola dostupnosti</h4>", unsafe_allow_html=True)
-    
-    dnes = datetime.now().date()
-    col_mesiac, col_rok = st.columns(2)
-    
-    with col_mesiac:
-        mesiac_volba = st.selectbox("Vyberte mesiac:", 
-            list(range(dnes.month, dnes.month + 13)), 
-            format_func=lambda x: calendar.month_name[x if x <= 12 else x - 12],
-            key="mesiac_selector")
-    
-    with col_rok:
-        rok_volba = st.selectbox("Vyberte rok:", 
-            [dnes.year, dnes.year + 1],
-            key="rok_selector")
-    
-    # Ak je mesiac väčší ako 12, nastav na ďalší rok
-    if mesiac_volba > 12:
-        mesiac_volba = mesiac_volba - 12
-        rok_volba = dnes.year + 1
-    
-    # Zobraz kalendár
-    calendar_html = zobraz_kalendar_obsadenosti(st.session_state['db_data'], rok_volba, mesiac_volba)
-    st.markdown(calendar_html, unsafe_allow_html=True)
+    # --- DOSTUPNOSŤ ---
+    dostupnost_html = zobraz_dostupnost(st.session_state['db_data'])
+    st.markdown(dostupnost_html, unsafe_allow_html=True)
     
     # --- REZERVAČNÝ FORMULÁR ---
     with st.form("main_booking"):
