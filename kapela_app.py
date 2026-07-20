@@ -409,7 +409,7 @@ def zobraz_obsadene_dni(db_data):
 def hvezdicky_html(pocet):
     return "⭐" * pocet + "☆" * (5 - pocet)
 
-def zobraz_footer_tlacidla():
+def zobraz_footer_tlacidla(is_recenzie_page=False):
     """Zobrazí 3 tlačidlá v footri"""
     col1, col2, col3 = st.columns(3)
     
@@ -461,21 +461,52 @@ def zobraz_footer_tlacidla():
     # RECENZIE
     if st.session_state.get(f"expand_rec_{st.session_state.get('page_id', 'main')}", False):
         st.markdown('<div class="expandable-section">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">⭐ Ohlasy zákazníkov</div>', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">⭐ Zanechaj svoj ohlas</div>', unsafe_allow_html=True)
         
-        recenzie = nacti_recenzie()
-        
-        if recenzie:
-            for rec in recenzie[:5]:
-                st.markdown(f"""
-                <div class="recenzia-item">
-                    <div class="recenzia-meno">{rec.get('meno', 'Anonymný')}</div>
-                    <div class="recenzia-hvezdicky">{hvezdicky_html(rec.get('hvezdicky', 5))}</div>
-                    <div class="recenzia-text">"{rec.get('text', '')}"</div>
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.markdown('<p style="color: #ccc; text-align: center; padding: 20px;">Zatiaľ bez recenzií</p>', unsafe_allow_html=True)
+        with st.form(f"nova_recenzia_{st.session_state.get('page_id', 'main')}"):
+            typ_mena = st.radio("Ako sa chceš reprezentovať?", 
+                ["❌ Anonymne", "✅ Pod mojim menom"],
+                horizontal=True,
+                key=f"radio_rec_{st.session_state.get('page_id', 'main')}"
+            )
+            
+            meno = ""
+            if typ_mena == "✅ Pod mojim menom":
+                meno = st.text_input("Tvoje meno", placeholder="Napíš svoje meno...", key=f"input_meno_{st.session_state.get('page_id', 'main')}")
+                if not meno:
+                    meno = "Anonymný"
+            else:
+                meno = "Anonymný"
+            
+            hvezdicky = st.slider("Ako hodnotíš našu kapelu? (1-5 hviezd)", min_value=1, max_value=5, value=5, key=f"slider_rec_{st.session_state.get('page_id', 'main')}")
+            
+            text = st.text_area("Tvoj komentár", placeholder="Napíš nám tvoj názor na naše vystúpenie...", height=120, key=f"textarea_rec_{st.session_state.get('page_id', 'main')}")
+            
+            if st.form_submit_button("🚀 ODOSLAŤ RECENZIU", key=f"submit_rec_{st.session_state.get('page_id', 'main')}"):
+                if not text or len(text) < 5:
+                    st.warning("⚠️ Napíš prosím aspoň pár slov do komentára!")
+                else:
+                    nova_recenzia = {
+                        "id": str(datetime.now().timestamp()),
+                        "meno": meno,
+                        "hvezdicky": hvezdicky,
+                        "text": text,
+                        "created_at": datetime.now().isoformat()
+                    }
+                    
+                    if supabase:
+                        try:
+                            res = supabase.table("recenzie").insert(nova_recenzia).execute()
+                            if res.data:
+                                st.success("✅ Ďakujeme za tvoj ohlas! 🎉")
+                                st.balloons()
+                                st.rerun()
+                            else:
+                                st.error("Chyba: Recenzija sa nepodarila uložiť.")
+                        except Exception as e:
+                            st.error(f"Chyba: {e}")
+                    else:
+                        st.error("Chyba: Databáza Supabase nie je pripojená!")
         
         st.markdown('</div>', unsafe_allow_html=True)
     
@@ -847,53 +878,7 @@ elif menu == "⭐ Recenzie":
     else:
         st.info("Zatiaľ tu nie sú žiadne recenzie. Buď prvý a nechaj svoj ohlas! 😊")
     
-    st.subheader("✍️ Zanechaj svoj ohlas")
-    
-    with st.form("nova_recenzia"):
-        typ_mena = st.radio("Ako sa chceš reprezentovať?", 
-            ["❌ Anonymne", "✅ Pod mojim menom"],
-            horizontal=True
-        )
-        
-        meno = ""
-        if typ_mena == "✅ Pod mojim menom":
-            meno = st.text_input("Tvoje meno", placeholder="Napíš svoje meno...")
-            if not meno:
-                meno = "Anonymný"
-        else:
-            meno = "Anonymný"
-        
-        hvezdicky = st.slider("Ako hodnotíš našu kapelu? (1-5 hviezd)", min_value=1, max_value=5, value=5)
-        
-        text = st.text_area("Tvoj komentár", placeholder="Napíš nám tvoj názor na naše vystúpenie...", height=120)
-        
-        if st.form_submit_button("🚀 ODOSLAŤ RECENZIU"):
-            if not text or len(text) < 5:
-                st.warning("⚠️ Napíš prosím aspoň pár slov do komentára!")
-            else:
-                nova_recenzia = {
-                    "id": str(datetime.now().timestamp()),
-                    "meno": meno,
-                    "hvezdicky": hvezdicky,
-                    "text": text,
-                    "created_at": datetime.now().isoformat()
-                }
-                
-                if supabase:
-                    try:
-                        res = supabase.table("recenzie").insert(nova_recenzia).execute()
-                        if res.data:
-                            st.success("✅ Ďakujeme za tvoj ohlas! 🎉")
-                            st.balloons()
-                            st.rerun()
-                        else:
-                            st.error("Chyba: Recenzija sa nepodarila uložiť.")
-                    except Exception as e:
-                        st.error(f"Chyba: {e}")
-                else:
-                    st.error("Chyba: Databáza Supabase nie je pripojená!")
-    
-    zobraz_footer_tlacidla()
+    zobraz_footer_tlacidla(is_recenzie_page=True)
 
 # --- 6. ADMIN ---
 else:
