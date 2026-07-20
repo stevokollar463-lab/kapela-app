@@ -5,6 +5,7 @@ from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 from pushbullet import Pushbullet
 from supabase import create_client
+import json
 
 # --- BEZPEČNÁ KONFIGURÁCIA (IBA st.secrets) ---
 # ⚠️ VŠETKY CITLIVÉ ÚDAJE MUSIA BYŤ V st.secrets - NIKDY V KÓDE!
@@ -110,6 +111,45 @@ def apply_style():
             margin: 20px 0;
         }}
 
+        .recenzia-box {{
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #d4af37;
+            padding: 15px;
+            border-radius: 12px;
+            margin: 12px 0;
+        }}
+
+        .recenzia-header {{
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 10px;
+            color: #d4af37;
+        }}
+
+        .recenzia-meno {{
+            font-weight: bold;
+            color: #d4af37;
+        }}
+
+        .recenzia-hvezdicky {{
+            font-size: 1.3rem;
+            color: #FFD700;
+        }}
+
+        .recenzia-text {{
+            color: #ccc;
+            font-style: italic;
+            margin-top: 10px;
+            line-height: 1.5;
+        }}
+
+        .recenzia-datum {{
+            font-size: 0.85rem;
+            color: #999;
+            margin-top: 8px;
+        }}
+
         .stForm {{ background-color: rgba(0, 0, 0, 0.8) !important; border: 2px solid #d4af37 !important; border-radius: 20px; padding: 30px; }}
         .stButton>button {{ background-color: #d4af37 !important; color: black !important; border-radius: 12px !important; font-weight: bold !important; width: 100%; transition: 0.3s; }}
         
@@ -171,6 +211,15 @@ def nacti_data():
             return response.data if response.data else []
         except Exception as e:
             st.error(f"Chyba načítania zo Supabase: {e}")
+    return []
+
+def nacti_recenzie():
+    if supabase:
+        try:
+            response = supabase.table("recenzie").select("*").order("created_at", desc=True).execute()
+            return response.data if response.data else []
+        except Exception as e:
+            pass
     return []
 
 def nacti_media():
@@ -240,6 +289,10 @@ def zobraz_obsadene_dni(db_data):
     html += '</div>'
     return html
 
+# Funkcia na zobrazenie hvezdičiek
+def hvezdicky_html(pocet):
+    return "⭐" * pocet + "☆" * (5 - pocet)
+
 # --- NOTIFIKÁCIE ---
 def posli_upozornenie(text):
     try:
@@ -300,7 +353,7 @@ apply_style()
 
 menu = st.radio(
     "NAVIGÁCIA", 
-    ["🎸 Rezervácia", "💰 Cenník", "📸 Galéria", "🔐 Administrácia"], 
+    ["🎸 Rezervácia", "💰 Cenník", "📸 Galéria", "⭐ Recenzie", "🔐 Administrácia"], 
     horizontal=True,
     label_visibility="collapsed"
 )
@@ -481,7 +534,7 @@ elif menu == "📸 Galéria":
     media = nacti_media()
     
     if media["videa"]:
-        st.subheader("🎥 Videá z našich vystúpení")
+        st.subheader("🎥 Videá z našich akcií")
         col_v1, col_v2 = st.columns(2)
         for idx, video_url in enumerate(media["videa"]):
             if idx % 2 == 0:
@@ -506,7 +559,79 @@ elif menu == "📸 Galéria":
     else:
         st.info("📸 Galéria je zatiaľ prázdna. Fotky budú pridané čoskoro.")
 
-# --- 4. ADMIN ---
+# --- 4. RECENZIE ---
+elif menu == "⭐ Recenzie":
+    st.title("⭐ Ohlasy našich zákazníkov")
+    
+    # Načítaj recenzie
+    recenzie = nacti_recenzie()
+    
+    # Zobraz existujúce recenzie
+    if recenzie:
+        st.subheader(f"💬 {len(recenzie)} ohlasov od našich zákazníkov")
+        for rec in recenzie:
+            html_recenzia = f"""
+            <div class="recenzia-box">
+                <div class="recenzia-header">
+                    <span class="recenzia-meno">{rec.get('meno', 'Anonymný')}</span>
+                    <span class="recenzia-hvezdicky">{hvezdicky_html(rec.get('hvezdicky', 5))}</span>
+                </div>
+                <div class="recenzia-text">"{rec.get('text', '')}"</div>
+                <div class="recenzia-datum">📅 {rec.get('created_at', '')[:10]}</div>
+            </div>
+            """
+            st.markdown(html_recenzia, unsafe_allow_html=True)
+        
+        st.markdown("<hr style='border-color: rgba(212,175,55,0.3); margin: 30px 0;'>", unsafe_allow_html=True)
+    else:
+        st.info("Zatiaľ tu nie sú žiadne recenzie. Buď prvý a nechaj svoj ohlas! 😊")
+    
+    # Formulár na pridanie recenzie
+    st.subheader("✍️ Zanechaj svoj ohlas")
+    
+    with st.form("nova_recenzia"):
+        typ_mena = st.radio("Ako sa chceš reprezentovať?", 
+            ["❌ Anonymne", "✅ Pod mojim menom"],
+            horizontal=True
+        )
+        
+        meno = ""
+        if typ_mena == "✅ Pod mojim menom":
+            meno = st.text_input("Tvoje meno")
+        else:
+            meno = "Anonymný"
+        
+        hvezdicky = st.slider("Ako hodnotíš našu kapelu? (1-5 hviezd)", min_value=1, max_value=5, value=5)
+        
+        text = st.text_area("Tvoj komentár", placeholder="Napíš nám tvoj názor na naše vystúpenie...", height=120)
+        
+        if st.form_submit_button("🚀 ODOSLAŤ RECENZIU"):
+            if not text or len(text) < 5:
+                st.warning("⚠️ Napíš prosím aspoň pár slov do komentára!")
+            else:
+                nova_recenzia = {
+                    "id": str(datetime.now().timestamp()),
+                    "meno": meno,
+                    "hvezdicky": hvezdicky,
+                    "text": text,
+                    "created_at": datetime.now().isoformat()
+                }
+                
+                if supabase:
+                    try:
+                        res = supabase.table("recenzie").insert(nova_recenzia).execute()
+                        if res.data:
+                            st.success("✅ Ďakujeme za tvoj ohlas! 🎉")
+                            st.balloons()
+                            st.rerun()
+                        else:
+                            st.error("Chyba: Recenzija sa nepodarila uložiť.")
+                    except Exception as e:
+                        st.error(f"Chyba: {e}")
+                else:
+                    st.error("Chyba: Databáza Supabase nie je pripojená!")
+
+# --- 5. ADMIN ---
 else:
     col_title, col_logout = st.columns([3, 1])
     with col_title:
@@ -531,7 +656,7 @@ else:
                 st.session_state['auth'] = False
                 st.rerun()
                 
-        t1, t2, t3, t4 = st.tabs(["📩 Nové dopyty", "📅 Kalendár", "📁 Sprava medii", "➕ Pridat udalost"])
+        t1, t2, t3, t4, t5 = st.tabs(["📩 Nové dopyty", "📅 Kalendár", "📁 Sprava medii", "➕ Pridat udalost", "⭐ Recenzie"])
         
         db = nacti_data()
         
@@ -770,6 +895,31 @@ else:
                                 st.rerun()
                             except Exception as e:
                                 st.error(f"Chyba pridania na Supabase: {e}")
+        
+        # --- TAB 5: RECENZIE ---
+        with t5:
+            st.subheader("⭐ Správa recenzií")
+            recenzie = nacti_recenzie()
+            
+            if not recenzie:
+                st.info("Zatiaľ nie sú žiadne recenzie.")
+            else:
+                st.write(f"**Celkovo recenzií:** {len(recenzie)}")
+                for idx, rec in enumerate(recenzie):
+                    with st.expander(f"⭐ {rec.get('meno', 'Anonymný')} - {hvezdicky_html(rec.get('hvezdicky', 5))}"):
+                        st.write(f"**Meno:** {rec.get('meno', 'Anonymný')}")
+                        st.write(f"**Hodnotenie:** {hvezdicky_html(rec.get('hvezdicky', 5))}")
+                        st.write(f"**Komentár:** {rec.get('text', '')}")
+                        st.write(f"**Dátum:** {rec.get('created_at', '')[:10]}")
+                        
+                        if st.button("🗑️ Vymazať", key=f"del_rec_{idx}"):
+                            if supabase:
+                                try:
+                                    supabase.table("recenzie").delete().eq("id", rec['id']).execute()
+                                    st.success("Recenzia vymazaná!")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Chyba pri vymazávaní: {e}")
 
 st.markdown(f'''
 <div style="text-align:center; margin-top:50px; color:#ccc; line-height: 1.6;">
