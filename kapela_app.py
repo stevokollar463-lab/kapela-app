@@ -6,6 +6,7 @@ from datetime import datetime, timedelta
 from pushbullet import Pushbullet
 from supabase import create_client
 import json
+import calendar
 
 # --- BEZPEČNÁ KONFIGURÁCIA (IBA st.secrets) ---
 try:
@@ -356,9 +357,9 @@ def nacti_media():
                                 vysledky["fotky"].append(public_url)
                             elif ext in ["mp4", "mov", "avi", "webm"]:
                                 vysledky["videa"].append(public_url)
-                        except Exception as e:
+                        except Exception:
                             pass
-        except Exception as e:
+        except Exception:
             pass
     return vysledky
 
@@ -380,7 +381,7 @@ def nacti_vsetky_media():
                             "velkost": subor.get("metadata", {}).get("size", 0),
                             "vytvorene": subor.get("created_at", "")
                         })
-        except Exception as e:
+        except Exception:
             pass
     return subbory_list
 
@@ -404,6 +405,52 @@ def zobraz_obsadene_dni(db_data):
     dni_text = ", ".join([d.strftime("%d.%m.%Y") for d in obsadene_datumy])
     html += f'<p style="color: #fff; margin: 0; font-size: 0.95rem; text-align: center;">{dni_text}</p>'
     html += '</div>'
+    return html
+
+def zobraz_kalendar_obsadenosti(db_data, rok, mesiac):
+    """Vykreslí mesiac, kde obsadené (schválené) dni sú označené X."""
+    obsadene = set()
+
+    for event in db_data:
+        if event.get("stav") == "schvalene":
+            try:
+                d = datetime.strptime(event["datum"], "%Y-%m-%d").date()
+                if d.year == rok and d.month == mesiac:
+                    obsadene.add(d.day)
+            except Exception:
+                pass
+
+    cal = calendar.monthcalendar(rok, mesiac)
+    nazvy_dni = ["Po", "Ut", "St", "Št", "Pi", "So", "Ne"]
+
+    html = """
+    <div style="background: rgba(0,0,0,0.85); border: 2px solid #d4af37; border-radius: 12px; padding: 15px; margin: 10px 0 20px 0;">
+      <h4 style="text-align:center; color:#d4af37; margin-bottom:10px;">📅 Obsadenosť termínov (X = obsadené)</h4>
+      <table style="width:100%; border-collapse:collapse; text-align:center; color:white;">
+        <tr>
+    """
+    for den in nazvy_dni:
+        html += f'<th style="padding:8px; border-bottom:1px solid rgba(212,175,55,0.4); color:#d4af37;">{den}</th>'
+    html += "</tr>"
+
+    for tyzden in cal:
+        html += "<tr>"
+        for den in tyzden:
+            if den == 0:
+                html += '<td style="padding:10px; color:#555;">&nbsp;</td>'
+            elif den in obsadene:
+                html += '<td style="padding:10px; font-weight:bold; color:#ff4d4d;">X</td>'
+            else:
+                html += f'<td style="padding:10px;">{den}</td>'
+        html += "</tr>"
+
+    html += """
+      </table>
+      <div style="text-align:center; margin-top:10px; color:#aaa; font-size:0.9rem;">
+        Červené <b>X</b> = termín je už obsadený (schválená akcia)
+      </div>
+    </div>
+    """
     return html
 
 def hvezdicky_html(pocet):
@@ -670,6 +717,34 @@ if menu == "🎸 Rezervácia":
     obsadene_html = zobraz_obsadene_dni(st.session_state['db_data'])
     if obsadene_html:
         st.markdown(obsadene_html, unsafe_allow_html=True)
+
+    with st.expander("📅 Zobraziť kalendár obsadenosti"):
+        dnes = datetime.now().date()
+        col_m1, col_m2 = st.columns(2)
+
+        with col_m1:
+            vybrany_rok = st.number_input(
+                "Rok",
+                min_value=dnes.year,
+                max_value=dnes.year + 3,
+                value=dnes.year,
+                step=1
+            )
+
+        with col_m2:
+            vybrany_mesiac = st.selectbox(
+                "Mesiac",
+                options=list(range(1, 13)),
+                index=dnes.month - 1,
+                format_func=lambda m: f"{m:02d}"
+            )
+
+        kal_html = zobraz_kalendar_obsadenosti(
+            st.session_state['db_data'],
+            int(vybrany_rok),
+            int(vybrany_mesiac)
+        )
+        st.markdown(kal_html, unsafe_allow_html=True)
     
     with st.form("main_booking"):
         st.subheader("📩 Rezervačný dopyt")
