@@ -133,6 +133,55 @@ def apply_style():
             border-radius: 8px;
         }}
 
+        .faq-box {{
+            background: rgba(0, 0, 0, 0.8);
+            border: 2px solid #d4af37;
+            padding: 15px;
+            border-radius: 12px;
+            margin: 12px 0;
+        }}
+
+        .faq-otazka {{
+            font-weight: bold;
+            color: #d4af37;
+            margin-bottom: 8px;
+        }}
+
+        .faq-odpoved {{
+            color: #ccc;
+            line-height: 1.5;
+        }}
+
+        .kontakt-box {{
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid #d4af37;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+        }}
+
+        .social-links {{
+            text-align: center;
+            margin: 20px 0;
+        }}
+
+        .social-link {{
+            display: inline-block;
+            margin: 0 10px;
+            padding: 10px 20px;
+            background-color: #d4af37;
+            color: black;
+            text-decoration: none;
+            border-radius: 8px;
+            font-weight: bold;
+            transition: 0.3s;
+        }}
+
+        .social-link:hover {{
+            background-color: #FFD700;
+            transform: scale(1.05);
+        }}
+
         .recenzia-box {{
             background: rgba(0, 0, 0, 0.8);
             border: 2px solid #d4af37;
@@ -354,7 +403,7 @@ Miesto konania a detaily: {detaily_miesta}
 S pozdravom,
 Ľudová hudba Ovčanske Parobci
 Tel. číslo: 0944 757 122
-E-mail: {SENDER_EMAIL}
+E-mail: parobciovcanske@gmail.com
 """
         msg.attach(MIMEText(body, 'plain', 'utf-8'))
         
@@ -369,13 +418,44 @@ E-mail: {SENDER_EMAIL}
         st.warning(f"Nepodarilo sa odoslať potvrdzujúci e-mail zákazníkovi: {e}")
         return False
 
+def posli_email_dotaz(meno, email, tel, sprava):
+    if not SENDER_PASSWORD:
+        return False
+    try:
+        msg = MIMEMultipart()
+        msg['From'] = email
+        msg['To'] = "parobciovcanske@gmail.com"
+        msg['Subject'] = f"Nový dopyt od {meno}"
+        
+        body = f"""Nový kontakt z webovej stránky:
+
+Meno: {meno}
+Email: {email}
+Telefón: {tel}
+
+Správa:
+{sprava}
+"""
+        msg.attach(MIMEText(body, 'plain', 'utf-8'))
+        
+        server = smtplib.SMTP('smtp.gmail.com', 587)
+        server.starttls()
+        server.login(SENDER_EMAIL, SENDER_PASSWORD)
+        text = msg.as_string()
+        server.sendmail(SENDER_EMAIL, "parobciovcanske@gmail.com", text)
+        server.quit()
+        return True
+    except Exception as e:
+        st.warning(f"Nepodarilo sa odoslať správu: {e}")
+        return False
+
 # --- ŠTART APP ---
 st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎻", layout="centered", initial_sidebar_state="collapsed")
 apply_style()
 
 menu = st.radio(
     "NAVIGÁCIA", 
-    ["🎸 Rezervácia", "💰 Cenník", "ℹ️ O nás", "📸 Galéria", "⭐ Recenzie", "🔐 Administrácia"], 
+    ["🎸 Rezervácia", "💰 Cenník", "ℹ️ O nás", "❓ FAQ", "📸 Galéria", "⭐ Recenzie", "📞 Kontakt", "🔐 Administrácia"], 
     horizontal=True,
     label_visibility="collapsed"
 )
@@ -597,7 +677,7 @@ elif menu == "ℹ️ O nás":
     recenzie = nacti_recenzie()
     
     if recenzie:
-        for rec in recenzie[:5]:  # Zobraz prvých 5 recenzií
+        for rec in recenzie[:5]:
             html_recenzia = f"""
             <div class="recenzia-box">
                 <div class="recenzia-header">
@@ -612,7 +692,41 @@ elif menu == "ℹ️ O nás":
     else:
         st.info("Zatiaľ tu nie sú žiadne recenzie.")
 
-# --- 4. GALÉRIA ---
+# --- 4. FAQ ---
+elif menu == "❓ FAQ":
+    st.title("❓ Často kladené otázky")
+    
+    faq_otazky = [
+        {
+            "otazka": "Ako dlho hráte minimálne?",
+            "odpoved": "Minimálna doba hrania je 1 hodina. Nižšie doby sa neposkytujú."
+        },
+        {
+            "otazka": "Aká je minimálna doba rezervácie?",
+            "odpoved": "Rezervácia musí byť uskutočnená minimálne 1 mesiac vopred. To nám umožňuje správne si naplánovať našu kapelu a zabezpečiť najlepšiu kvalitu služby."
+        },
+        {
+            "otazka": "Ako sa počíta cena?",
+            "odpoved": f"""Cena sa počíta nasledovne:
+• Rodinná oslava / Jubileum: {CENA_OSLAVA_HODINA} € za hodinu
+• Svadobný sprievod: {CENA_SPRIEVOD_ZAKLAD} € za 2 hodiny (základný balík)
+• Hranie pomedzi stoly: {CENA_STOLY_HODINA} € za hodinu
+• Zvuková aparatúra: +{CENA_APARATURA} € jednorazovo (ak je potrebná)
+• Doprava: {CENA_ZA_KM} € za kilometer (cesta tam a späť)
+
+Finálna cena je súčet všetkých vybraných služieb."""
+        }
+    ]
+    
+    for faq in faq_otazky:
+        st.markdown(f"""
+            <div class="faq-box">
+                <div class="faq-otazka">❓ {faq['otazka']}</div>
+                <div class="faq-odpoved">{faq['odpoved']}</div>
+            </div>
+        """, unsafe_allow_html=True)
+
+# --- 5. GALÉRIA ---
 elif menu == "📸 Galéria":
     st.title("📸 Galéria a Videá")
     
@@ -644,14 +758,12 @@ elif menu == "📸 Galéria":
     else:
         st.info("📸 Galéria je zatiaľ prázdna. Fotky budú pridané čoskoro.")
 
-# --- 5. RECENZIE ---
+# --- 6. RECENZIE ---
 elif menu == "⭐ Recenzie":
     st.title("⭐ Ohlasy našich zákazníkov")
     
-    # Načítaj recenzie
     recenzie = nacti_recenzie()
     
-    # Zobraz existujúce recenzie
     if recenzie:
         st.subheader(f"💬 {len(recenzie)} ohlasov od našich zákazníkov")
         for rec in recenzie:
@@ -671,7 +783,6 @@ elif menu == "⭐ Recenzie":
     else:
         st.info("Zatiaľ tu nie sú žiadne recenzie. Buď prvý a nechaj svoj ohlas! 😊")
     
-    # Formulár na pridanie recenzie
     st.subheader("✍️ Zanechaj svoj ohlas")
     
     with st.form("nova_recenzia"):
@@ -718,7 +829,62 @@ elif menu == "⭐ Recenzie":
                 else:
                     st.error("Chyba: Databáza Supabase nie je pripojená!")
 
-# --- 6. ADMIN ---
+# --- 7. KONTAKT ---
+elif menu == "📞 Kontakt":
+    st.title("📞 Kontaktujte nás")
+    
+    st.markdown("""
+        <div class="kontakt-box">
+            <h3 style="color: #d4af37; text-align: center;">Ako nás dosiahnuť</h3>
+            <div style="color: #ccc; line-height: 2; text-align: center; font-size: 1.1rem;">
+                <p><strong style="color: #d4af37;">📞 Telefón:</strong> 0944 757 122</p>
+                <p><strong style="color: #d4af37;">📧 Email:</strong> parobciovcanske@gmail.com</p>
+                <p><strong style="color: #d4af37;">📍 Mesto:</strong> Obec Ovčie, Slovensko</p>
+            </div>
+        </div>
+    """, unsafe_allow_html=True)
+    
+    # Google Mapa
+    st.subheader("🗺️ Kde nás nájdete")
+    st.markdown("""
+    <iframe src="https://www.google.com/maps/embed?pb=!1m18!1m12!1m3!1d2714.9851854899376!2d18.912841776532206!3d48.79054907146289!2m3!1f0!2f0!3f0!3m2!1i1024!2i768!4f13.1!3m3!1m2!1s0x4714dbfa9c3e9e3d%3A0x2b8e8f3e7f8e3e3e!2sOv%C4%8Die!5e0!3m2!1ssk!2ssk!4v1234567890" 
+    width="100%" height="400" style="border:0; border-radius: 15px;" allowfullscreen="" loading="lazy" referrerpolicy="no-referrer-when-downgrade"></iframe>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("<hr style='border-color: rgba(212,175,55,0.3); margin: 30px 0;'>", unsafe_allow_html=True)
+    
+    # Sociálne siete
+    st.subheader("📱 Sleduj nás na sociálnych sieťach")
+    st.markdown("""
+    <div style="text-align: center;">
+        <a href="https://www.instagram.com/ovcanske_parobci/" target="_blank" style="display: inline-block; margin: 10px; padding: 12px 25px; background-color: #d4af37; color: black; text-decoration: none; border-radius: 8px; font-weight: bold; transition: 0.3s;">
+            📸 Instagram
+        </a>
+    </div>
+    """, unsafe_allow_html=True)
+    
+    st.markdown("<hr style='border-color: rgba(212,175,55,0.3); margin: 30px 0;'>", unsafe_allow_html=True)
+    
+    # Formulár na dotaz
+    st.subheader("✉️ Pošli nám správu")
+    
+    with st.form("kontakt_formular"):
+        meno = st.text_input("Tvoje meno")
+        email = st.text_input("Tvoj email")
+        tel = st.text_input("Telefónne číslo")
+        sprava = st.text_area("Tvoja správa", placeholder="Napíš nám niečo...", height=150)
+        
+        if st.form_submit_button("🚀 ODOSLAŤ SPRÁVU"):
+            if not meno or not email or not sprava:
+                st.warning("⚠️ Vyplň prosím všetky povinné polia!")
+            else:
+                if posli_email_dotaz(meno, email, tel, sprava):
+                    st.success("✅ Ďakujeme! Tvoja správa bola odoslaná. Čoskoro sa ti ozveme!")
+                    st.balloons()
+                else:
+                    st.error("❌ Chyba pri odoslaní správy. Skús neskôr.")
+
+# --- 8. ADMIN ---
 else:
     col_title, col_logout = st.columns([3, 1])
     with col_title:
@@ -1012,6 +1178,6 @@ st.markdown(f'''
 <div style="text-align:center; margin-top:50px; color:#ccc; line-height: 1.6;">
     <b>Podpora</b><br>
     <b>Tel. číslo:</b> 0944 757 122<br>
-    <b>E-mail:</b> kollarstevo55@gmail.com
+    <b>E-mail:</b> parobciovcanske@gmail.com
 </div>
 ''', unsafe_allow_html=True)
