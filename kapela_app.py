@@ -8,7 +8,6 @@ from supabase import create_client
 import json
 
 # --- BEZPEČNÁ KONFIGURÁCIA (IBA st.secrets) ---
-# ⚠️ VŠETKY CITLIVÉ ÚDAJE MUSIA BYŤ V st.secrets - NIKDY V KÓDE!
 try:
     PB_API_KEY = st.secrets["PB_API_KEY"]
     LOGIN_MENO = st.secrets["ADMIN_USER"]
@@ -23,7 +22,6 @@ except KeyError as e:
 
 KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg" 
 
-# --- NASTAVENIE CIEN ---
 CENA_OSLAVA_HODINA = 130
 CENA_SPRIEVOD_ZAKLAD = 300
 CENA_SPRIEVOD_POLHODINA = 50  
@@ -31,7 +29,6 @@ CENA_STOLY_HODINA = 120
 CENA_APARATURA = 100      
 CENA_ZA_KM = 0.50        
 
-# --- INICIALIZÁCIA SUPABASE ---
 @st.cache_resource
 def get_supabase_client():
     try:
@@ -42,7 +39,6 @@ def get_supabase_client():
 
 supabase = get_supabase_client()
 
-# --- SKRYTIE GITHUB IKONY A STREAMLIT MENU ---
 def apply_style():
     st.markdown(f"""
         <style>
@@ -56,19 +52,16 @@ def apply_style():
             color: #ffffff;
         }}
         
-        /* Skrytie sidebaru a menu */
         [data-testid="collapsedSidebarNoOverlay"], 
         [data-testid="stSidebar"], 
         button[data-testid="stSidebarCollapseButton"] {{
             display: none !important;
         }}
         
-        /* Skrytie GitHub ikony a menu v pravom hornom rohu */
         [data-testid="stToolbar"] {{
             display: none !important;
         }}
         
-        /* Skrytie "Deploy" tlačidla */
         .stDeployButton {{
             display: none !important;
         }}
@@ -115,7 +108,9 @@ def apply_style():
             display: grid;
             grid-template-columns: 1fr 1fr 1fr;
             gap: 20px;
-            margin: 20px 0;
+            margin: 40px 0 20px 0;
+            padding-top: 30px;
+            border-top: 2px solid rgba(212, 175, 55, 0.3);
         }}
 
         @media (max-width: 1200px) {{
@@ -140,7 +135,7 @@ def apply_style():
 
         .stlpec-nadpis {{
             color: #d4af37;
-            font-size: 1.5rem;
+            font-size: 1.3rem;
             font-weight: bold;
             text-align: center;
             margin-bottom: 15px;
@@ -171,8 +166,8 @@ def apply_style():
         }}
 
         .faq-item {{
-            margin-bottom: 15px;
-            padding-bottom: 15px;
+            margin-bottom: 12px;
+            padding-bottom: 12px;
             border-bottom: 1px solid rgba(212, 175, 55, 0.3);
         }}
 
@@ -183,20 +178,20 @@ def apply_style():
         .faq-otazka {{
             font-weight: bold;
             color: #d4af37;
-            margin-bottom: 8px;
-            font-size: 0.95rem;
+            margin-bottom: 6px;
+            font-size: 0.85rem;
         }}
 
         .faq-odpoved {{
             color: #ccc;
-            line-height: 1.5;
-            font-size: 0.9rem;
+            line-height: 1.4;
+            font-size: 0.8rem;
         }}
 
         .kontakt-info {{
             text-align: center;
-            margin: 15px 0;
-            padding: 10px;
+            margin: 10px 0;
+            padding: 8px;
             background: rgba(212, 175, 55, 0.1);
             border-left: 3px solid #d4af37;
             border-radius: 5px;
@@ -205,18 +200,18 @@ def apply_style():
         .kontakt-label {{
             color: #d4af37;
             font-weight: bold;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
         }}
 
         .kontakt-value {{
             color: #fff;
-            font-size: 0.95rem;
-            margin-top: 3px;
+            font-size: 0.85rem;
+            margin-top: 2px;
         }}
 
         .recenzia-item {{
-            margin-bottom: 15px;
-            padding: 12px;
+            margin-bottom: 12px;
+            padding: 10px;
             background: rgba(212, 175, 55, 0.05);
             border-left: 3px solid #d4af37;
             border-radius: 5px;
@@ -225,21 +220,21 @@ def apply_style():
         .recenzia-meno {{
             font-weight: bold;
             color: #d4af37;
-            font-size: 0.9rem;
+            font-size: 0.8rem;
         }}
 
         .recenzia-hvezdicky {{
             color: #FFD700;
-            font-size: 0.95rem;
-            margin-top: 3px;
+            font-size: 0.8rem;
+            margin-top: 2px;
         }}
 
         .recenzia-text {{
             color: #ccc;
             font-style: italic;
-            margin-top: 8px;
-            font-size: 0.85rem;
-            line-height: 1.4;
+            margin-top: 6px;
+            font-size: 0.75rem;
+            line-height: 1.3;
         }}
 
         .stForm {{ background-color: rgba(0, 0, 0, 0.8) !important; border: 2px solid #d4af37 !important; border-radius: 20px; padding: 30px; }}
@@ -295,7 +290,6 @@ def apply_style():
         </style>
     """, unsafe_allow_html=True)
 
-# --- FUNKCIE PRE NAČÍTANIE ZO SUPABASE ---
 def nacti_data():
     if supabase:
         try:
@@ -358,7 +352,6 @@ def nacti_vsetky_media():
             pass
     return subbory_list
 
-# Funkcia na zobrazenie obsadených dní
 def zobraz_obsadene_dni(db_data):
     obsadene_datumy = []
     for event in db_data:
@@ -381,11 +374,93 @@ def zobraz_obsadene_dni(db_data):
     html += '</div>'
     return html
 
-# Funkcia na zobrazenie hvezdičiek
 def hvezdicky_html(pocet):
     return "⭐" * pocet + "☆" * (5 - pocet)
 
-# --- NOTIFIKÁCIE ---
+def zobraz_tri_stlpce():
+    """Zobrazí 3 stĺpce s FAQ, Recenziami a Kontaktom"""
+    recenzie = nacti_recenzie()
+    
+    col_left, col_mid, col_right = st.columns(3)
+    
+    # ĽAVÝ STĹPEC - FAQ
+    with col_left:
+        st.markdown("""
+            <div class="stlpec-box">
+                <div class="stlpec-nadpis">❓ FAQ</div>
+        """, unsafe_allow_html=True)
+        
+        faq_otazky = [
+            {
+                "otazka": "Ako dlho hráte minimálne?",
+                "odpoved": "1 hodina"
+            },
+            {
+                "otazka": "Minimálna doba rezervácie?",
+                "odpoved": "1 mesiac vopred"
+            },
+            {
+                "otazka": "Ako sa počíta cena?",
+                "odpoved": "Oslava: 130€/h, Svadba: 300€ (2h), Posedenie: 120€/h + doprava"
+            }
+        ]
+        
+        for faq in faq_otazky:
+            st.markdown(f"""
+            <div class="faq-item">
+                <div class="faq-otazka">❓ {faq['otazka']}</div>
+                <div class="faq-odpoved">{faq['odpoved']}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # STREDNÝ STĹPEC - RECENZIE
+    with col_mid:
+        st.markdown("""
+            <div class="stlpec-box">
+                <div class="stlpec-nadpis">⭐ Recenzie</div>
+        """, unsafe_allow_html=True)
+        
+        if recenzie:
+            for rec in recenzie[:3]:
+                st.markdown(f"""
+                <div class="recenzia-item">
+                    <div class="recenzia-meno">{rec.get('meno', 'Anonymný')}</div>
+                    <div class="recenzia-hvezdicky">{hvezdicky_html(rec.get('hvezdicky', 5))}</div>
+                    <div class="recenzia-text">"{rec.get('text', '')}"</div>
+                </div>
+                """, unsafe_allow_html=True)
+        else:
+            st.markdown('<p style="color: #ccc; text-align: center; padding: 20px; font-size: 0.85rem;">Zatiaľ bez recenzií</p>', unsafe_allow_html=True)
+        
+        st.markdown("</div>", unsafe_allow_html=True)
+    
+    # PRAVÝ STĹPEC - KONTAKT
+    with col_right:
+        st.markdown("""
+            <div class="stlpec-box">
+                <div class="stlpec-nadpis">📞 Kontakt</div>
+                <div class="kontakt-info">
+                    <div class="kontakt-label">☎️ Telefón</div>
+                    <div class="kontakt-value">0944 757 122</div>
+                </div>
+                <div class="kontakt-info">
+                    <div class="kontakt-label">📧 Email</div>
+                    <div class="kontakt-value">parobciovcanske@gmail.com</div>
+                </div>
+                <div class="kontakt-info">
+                    <div class="kontakt-label">📍 Mesto</div>
+                    <div class="kontakt-value">Obec Ovčie, SK</div>
+                </div>
+                <div style="text-align: center; margin-top: 12px;">
+                    <a href="https://www.instagram.com/ovcanske_parobci/" target="_blank" style="display: inline-block; padding: 6px 12px; background-color: #d4af37; color: black; text-decoration: none; border-radius: 6px; font-weight: bold; font-size: 0.8rem;">
+                        📸 Instagram
+                    </a>
+                </div>
+            </div>
+        """, unsafe_allow_html=True)
+
 def posli_upozornenie(text):
     try:
         if PB_API_KEY:
@@ -439,44 +514,12 @@ E-mail: parobciovcanske@gmail.com
         st.warning(f"Nepodarilo sa odoslať potvrdzujúci e-mail zákazníkovi: {e}")
         return False
 
-def posli_email_dotaz(meno, email, tel, sprava):
-    if not SENDER_PASSWORD:
-        return False
-    try:
-        msg = MIMEMultipart()
-        msg['From'] = email
-        msg['To'] = "parobciovcanske@gmail.com"
-        msg['Subject'] = f"Nový dopyt od {meno}"
-        
-        body = f"""Nový kontakt z webovej stránky:
-
-Meno: {meno}
-Email: {email}
-Telefón: {tel}
-
-Správa:
-{sprava}
-"""
-        msg.attach(MIMEText(body, 'plain', 'utf-8'))
-        
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(SENDER_EMAIL, SENDER_PASSWORD)
-        text = msg.as_string()
-        server.sendmail(SENDER_EMAIL, "parobciovcanske@gmail.com", text)
-        server.quit()
-        return True
-    except Exception as e:
-        st.warning(f"Nepodarilo sa odoslať správu: {e}")
-        return False
-
-# --- ŠTART APP ---
 st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎻", layout="centered", initial_sidebar_state="collapsed")
 apply_style()
 
 menu = st.radio(
     "NAVIGÁCIA", 
-    ["🎸 Rezervácia", "💰 Cenník", "ℹ️ O nás", "📸 Galéria", "🔐 Administrácia"], 
+    ["🎸 Rezervácia", "💰 Cenník", "ℹ️ O nás", "📸 Galéria", "⭐ Recenzie", "🔐 Administrácia"], 
     horizontal=True,
     label_visibility="collapsed"
 )
@@ -547,12 +590,10 @@ if menu == "🎸 Rezervácia":
         </div>
     """, unsafe_allow_html=True)
     
-    # --- OBSADENÉ DNI ---
     obsadene_html = zobraz_obsadene_dni(st.session_state['db_data'])
     if obsadene_html:
         st.markdown(obsadene_html, unsafe_allow_html=True)
     
-    # --- REZERVAČNÝ FORMULÁR ---
     with st.form("main_booking"):
         st.subheader("📩 Rezervačný dopyt")
         
@@ -608,6 +649,10 @@ if menu == "🎸 Rezervácia":
                         st.error(f"Chyba zápisu do Supabase: {e}")
                 else:
                     st.error("Chyba: Databáza Supabase nie je pripojená!")
+    
+    st.markdown('<div class="tri-stlpce">', unsafe_allow_html=True)
+    zobraz_tri_stlpce()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 2. PODROBNÝ CENNÍK ---
 elif menu == "💰 Cenník":
@@ -649,6 +694,10 @@ elif menu == "💰 Cenník":
             </table>
         </div>
     """, unsafe_allow_html=True)
+    
+    st.markdown('<div class="tri-stlpce">', unsafe_allow_html=True)
+    zobraz_tri_stlpce()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 3. O NÁS ---
 elif menu == "ℹ️ O nás":
@@ -692,90 +741,9 @@ elif menu == "ℹ️ O nás":
             </div>
         """, unsafe_allow_html=True)
     
-    st.markdown("<hr style='border-color: rgba(212,175,55,0.3); margin: 30px 0;'>", unsafe_allow_html=True)
-    
-    # --- TRI STĹPCE: FAQ, RECENZIE, KONTAKT ---
-    col_left, col_mid, col_right = st.columns(3)
-    
-    # --- ĽAVÝ STĹPEC - FAQ ---
-    with col_left:
-        st.markdown("""
-            <div class="stlpec-box">
-                <div class="stlpec-nadpis">❓ FAQ</div>
-        """, unsafe_allow_html=True)
-        
-        faq_otazky = [
-            {
-                "otazka": "Ako dlho hráte minimálne?",
-                "odpoved": "1 hodina"
-            },
-            {
-                "otazka": "Minimálna doba rezervácie?",
-                "odpoved": "1 mesiac vopred"
-            },
-            {
-                "otazka": "Ako sa počíta cena?",
-                "odpoved": "Oslava: 130€/h, Svadba: 300€ (2h), Posedenie: 120€/h + doprava"
-            }
-        ]
-        
-        for faq in faq_otazky:
-            st.markdown(f"""
-            <div class="faq-item">
-                <div class="faq-otazka">❓ {faq['otazka']}</div>
-                <div class="faq-odpoved">{faq['odpoved']}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    # --- STREDNÝ STĹPEC - RECENZIE ---
-    with col_mid:
-        recenzie = nacti_recenzie()
-        
-        st.markdown("""
-            <div class="stlpec-box">
-                <div class="stlpec-nadpis">⭐ Recenzie</div>
-        """, unsafe_allow_html=True)
-        
-        if recenzie:
-            for rec in recenzie[:3]:  # Zobraz prvé 3 recenzie
-                st.markdown(f"""
-                <div class="recenzia-item">
-                    <div class="recenzia-meno">{rec.get('meno', 'Anonymný')}</div>
-                    <div class="recenzia-hvezdicky">{hvezdicky_html(rec.get('hvezdicky', 5))}</div>
-                    <div class="recenzia-text">"{rec.get('text', '')}"</div>
-                </div>
-                """, unsafe_allow_html=True)
-        else:
-            st.markdown('<p style="color: #ccc; text-align: center; padding: 20px;">Zatiaľ bez recenzií</p>', unsafe_allow_html=True)
-        
-        st.markdown("</div>", unsafe_allow_html=True)
-    
-    # --- PRAVÝ STĹPEC - KONTAKT ---
-    with col_right:
-        st.markdown("""
-            <div class="stlpec-box">
-                <div class="stlpec-nadpis">📞 Kontakt</div>
-                <div class="kontakt-info">
-                    <div class="kontakt-label">☎️ Telefón</div>
-                    <div class="kontakt-value">0944 757 122</div>
-                </div>
-                <div class="kontakt-info">
-                    <div class="kontakt-label">📧 Email</div>
-                    <div class="kontakt-value">parobciovcanske@gmail.com</div>
-                </div>
-                <div class="kontakt-info">
-                    <div class="kontakt-label">📍 Mesto</div>
-                    <div class="kontakt-value">Obec Ovčie, SK</div>
-                </div>
-                <div style="text-align: center; margin-top: 15px;">
-                    <a href="https://www.instagram.com/ovcanske_parobci/" target="_blank" style="display: inline-block; padding: 8px 16px; background-color: #d4af37; color: black; text-decoration: none; border-radius: 8px; font-weight: bold; font-size: 0.9rem;">
-                        📸 Instagram
-                    </a>
-                </div>
-            </div>
-        """, unsafe_allow_html=True)
+    st.markdown('<div class="tri-stlpce">', unsafe_allow_html=True)
+    zobraz_tri_stlpce()
+    st.markdown('</div>', unsafe_allow_html=True)
 
 # --- 4. GALÉRIA ---
 elif menu == "📸 Galéria":
@@ -808,8 +776,86 @@ elif menu == "📸 Galéria":
                     st.image(f, use_container_width=True)
     else:
         st.info("📸 Galéria je zatiaľ prázdna. Fotky budú pridané čoskoro.")
+    
+    st.markdown('<div class="tri-stlpce">', unsafe_allow_html=True)
+    zobraz_tri_stlpce()
+    st.markdown('</div>', unsafe_allow_html=True)
 
-# --- 5. ADMIN ---
+# --- 5. RECENZIE ---
+elif menu == "⭐ Recenzie":
+    st.title("⭐ Ohlasy našich zákazníkov")
+    
+    recenzie = nacti_recenzie()
+    
+    if recenzie:
+        st.subheader(f"💬 {len(recenzie)} ohlasov od našich zákazníkov")
+        for rec in recenzie:
+            st.markdown(f"""
+            <div style="background: rgba(0, 0, 0, 0.8); border: 2px solid #d4af37; padding: 15px; border-radius: 12px; margin: 12px 0;">
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; color: #d4af37;">
+                    <span style="font-weight: bold;">{rec.get('meno', 'Anonymný')}</span>
+                    <span style="font-size: 1.3rem; color: #FFD700;">{hvezdicky_html(rec.get('hvezdicky', 5))}</span>
+                </div>
+                <div style="color: #ccc; font-style: italic; margin-top: 10px; line-height: 1.5;">"{rec.get('text', '')}"</div>
+                <div style="font-size: 0.85rem; color: #999; margin-top: 8px;">📅 {rec.get('created_at', '')[:10]}</div>
+            </div>
+            """, unsafe_allow_html=True)
+        
+        st.markdown("<hr style='border-color: rgba(212,175,55,0.3); margin: 30px 0;'>", unsafe_allow_html=True)
+    else:
+        st.info("Zatiaľ tu nie sú žiadne recenzie. Buď prvý a nechaj svoj ohlas! 😊")
+    
+    st.subheader("✍️ Zanechaj svoj ohlas")
+    
+    with st.form("nova_recenzia"):
+        typ_mena = st.radio("Ako sa chceš reprezentovať?", 
+            ["❌ Anonymne", "✅ Pod mojim menom"],
+            horizontal=True
+        )
+        
+        meno = ""
+        if typ_mena == "✅ Pod mojim menom":
+            meno = st.text_input("Tvoje meno", placeholder="Napíš svoje meno...")
+            if not meno:
+                meno = "Anonymný"
+        else:
+            meno = "Anonymný"
+        
+        hvezdicky = st.slider("Ako hodnotíš našu kapelu? (1-5 hviezd)", min_value=1, max_value=5, value=5)
+        
+        text = st.text_area("Tvoj komentár", placeholder="Napíš nám tvoj názor na naše vystúpenie...", height=120)
+        
+        if st.form_submit_button("🚀 ODOSLAŤ RECENZIU"):
+            if not text or len(text) < 5:
+                st.warning("⚠️ Napíš prosím aspoň pár slov do komentára!")
+            else:
+                nova_recenzia = {
+                    "id": str(datetime.now().timestamp()),
+                    "meno": meno,
+                    "hvezdicky": hvezdicky,
+                    "text": text,
+                    "created_at": datetime.now().isoformat()
+                }
+                
+                if supabase:
+                    try:
+                        res = supabase.table("recenzie").insert(nova_recenzia).execute()
+                        if res.data:
+                            st.success("✅ Ďakujeme za tvoj ohlas! 🎉")
+                            st.balloons()
+                            st.rerun()
+                        else:
+                            st.error("Chyba: Recenzija sa nepodarila uložiť.")
+                    except Exception as e:
+                        st.error(f"Chyba: {e}")
+                else:
+                    st.error("Chyba: Databáza Supabase nie je pripojená!")
+    
+    st.markdown('<div class="tri-stlpce">', unsafe_allow_html=True)
+    zobraz_tri_stlpce()
+    st.markdown('</div>', unsafe_allow_html=True)
+
+# --- 6. ADMIN ---
 else:
     col_title, col_logout = st.columns([3, 1])
     with col_title:
@@ -838,7 +884,6 @@ else:
         
         db = nacti_data()
         
-        # --- TAB 1: NOVÉ DOPYTY ---
         with t1:
             cakajuce = [a for a in db if a.get("stav") == "cakajuce"]
             if not cakajuce:
@@ -909,7 +954,6 @@ else:
                                     except Exception as e:
                                         st.error(f"Chyba úpravy Supabase: {e}")
         
-        # --- TAB 2: KALENDÁR ---
         with t2:
             schvalene = [a for a in db if a.get("stav") == "schvalene"]
             schvalene.sort(key=lambda x: x['datum'])
@@ -971,7 +1015,6 @@ else:
                                     except Exception as e:
                                         st.error(f"Chyba úpravy Supabase: {e}")
         
-        # --- TAB 3: SPRAVA MEDIÍ ---
         with t3:
             st.subheader("📁 Nahrať fotky a videá priamo z počítača")
             st.write("Tu môžete nahrať fotky (.jpg, .png) alebo videá (.mp4), ktoré sa ihneď zobrazia v Galérii.")
@@ -983,7 +1026,7 @@ else:
             )
             
             if subor_na_nahratie is not None:
-                if st.button("🚀 NAHRAŤ VYBRANÝ SÚBOR"):
+                if st.button("🚀 NAHRAŤ VYBRAN�� SÚBOR"):
                     if supabase:
                         try:
                             subor_bytes = subor_na_nahratie.read()
@@ -1037,7 +1080,6 @@ else:
             else:
                 st.info("Galéria je zatiaľ prázdna.")
         
-        # --- TAB 4: PRIDAŤ UDALOSŤ ---
         with t4:
             with st.form("add_manual"):
                 st.subheader("➕ Manuálne pridať akciu")
@@ -1074,7 +1116,6 @@ else:
                             except Exception as e:
                                 st.error(f"Chyba pridania na Supabase: {e}")
         
-        # --- TAB 5: RECENZIE ---
         with t5:
             st.subheader("⭐ Správa recenzií")
             recenzie = nacti_recenzie()
