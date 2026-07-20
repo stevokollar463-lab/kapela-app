@@ -2,9 +2,10 @@ import streamlit as st
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
-from datetime import datetime, date
+from datetime import datetime, timedelta
 from pushbullet import Pushbullet
 from supabase import create_client
+import calendar
 
 # --- BEZPEČNÁ KONFIGURÁCIA (IBA st.secrets) ---
 # ⚠️ VŠETKY CITLIVÉ ÚDAJE MUSIA BYŤ V st.secrets - NIKDY V KÓDE!
@@ -100,6 +101,43 @@ def apply_style():
             text-align: center;
             margin: 20px 0;
             box-shadow: 0 0 15px rgba(212, 175, 55, 0.20);
+        }}
+
+        .calendar-box {{
+            background: rgba(0, 0, 0, 0.85);
+            border: 2px solid #d4af37;
+            padding: 20px;
+            border-radius: 15px;
+            margin: 20px 0;
+        }}
+
+        .calendar-legend {{
+            display: flex;
+            gap: 20px;
+            justify-content: center;
+            flex-wrap: wrap;
+            margin: 15px 0;
+            font-size: 0.9rem;
+        }}
+
+        .legend-item {{
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }}
+
+        .legend-free {{
+            width: 20px;
+            height: 20px;
+            background-color: #4CAF50;
+            border-radius: 3px;
+        }}
+
+        .legend-busy {{
+            width: 20px;
+            height: 20px;
+            background-color: #f44336;
+            border-radius: 3px;
         }}
 
         .stForm {{ background-color: rgba(0, 0, 0, 0.8) !important; border: 2px solid #d4af37 !important; border-radius: 20px; padding: 30px; }}
@@ -209,6 +247,64 @@ def nacti_vsetky_media():
             pass
     return subbory_list
 
+# Funkcia na zobrazenie kalendára s obsadenosťou
+def zobraz_kalendar_obsadenosti(db_data, rok, mesiac):
+    obsadene_datumy = set()
+    for event in db_data:
+        if event.get('stav') == 'schvalene':
+            try:
+                event_date = datetime.strptime(event['datum'], '%Y-%m-%d').date()
+                obsadene_datumy.add(event_date)
+            except:
+                pass
+    
+    # Vytvor HTML kalendár
+    cal = calendar.monthcalendar(rok, mesiac)
+    mesiac_meno = calendar.month_name[mesiac]
+    
+    html = f"""
+    <div class="calendar-box">
+        <h3 style="color: #d4af37; text-align: center; margin-bottom: 20px;">📅 Kalendár obsadenosti - {mesiac_meno} {rok}</h3>
+        
+        <div class="calendar-legend">
+            <div class="legend-item">
+                <div class="legend-free"></div>
+                <span>Voľný deň</span>
+            </div>
+            <div class="legend-item">
+                <div class="legend-busy"></div>
+                <span>Obsadený deň</span>
+            </div>
+        </div>
+        
+        <table style="width: 100%; border-collapse: collapse; text-align: center; color: #fff;">
+            <tr style="background-color: #d4af37; color: black;">
+                <th style="padding: 10px;">Po</th>
+                <th style="padding: 10px;">Ut</th>
+                <th style="padding: 10px;">St</th>
+                <th style="padding: 10px;">Št</th>
+                <th style="padding: 10px;">Pi</th>
+                <th style="padding: 10px;">So</th>
+                <th style="padding: 10px;">Ne</th>
+            </tr>
+    """
+    
+    for week in cal:
+        html += "<tr>"
+        for day in week:
+            if day == 0:
+                html += "<td style='padding: 10px; background-color: rgba(0,0,0,0.3);'></td>"
+            else:
+                datum = datetime(rok, mesiac, day).date()
+                if datum in obsadene_datumy:
+                    html += f"<td style='padding: 10px; background-color: #f44336; border: 1px solid #d4af37; border-radius: 5px;'><strong>{day}</strong></td>"
+                else:
+                    html += f"<td style='padding: 10px; background-color: #4CAF50; border: 1px solid #d4af37; border-radius: 5px;'><strong>{day}</strong></td>"
+        html += "</tr>"
+    
+    html += "</table></div>"
+    return html
+
 # --- NOTIFIKÁCIE ---
 def posli_upozornenie(text):
     try:
@@ -284,31 +380,6 @@ if menu == "🎸 Rezervácia":
     st.title("🎻 Rezervácia vystúpenia")
     st.markdown('<div class="info-box">🪗 Akordeón | 🎻 Husle | 🥁 Bubon | 🎷 Saxofón</div>', unsafe_allow_html=True)
     
-    # --- ZOBRAZENIE OBSADENÝCH TERMÍNOV PRE ZÁKAZNÍKA ---
-    db_vsetky = nacti_data()
-    obsadene_datumy = [a['datum'] for a in db_vsetky if a.get('stav') == 'schvalene']
-    
-    st.markdown("<h4 style='text-align: center; margin-top: 15px;'>📅 Kalendár obsadenosti</h4>", unsafe_allow_html=True)
-    
-    dnes_str = date.today().strftime('%Y-%m-%d')
-    buduce_obsadene = [d for d in sorted(obsadene_datumy) if d >= dnes_str]
-    
-    with st.expander("👀 Kliknite sem pre zobrazenie obsadených termínov", expanded=False):
-        if buduce_obsadene:
-            st.write("🔴 **Nasledujúce termíny sú už plne obsadené:**")
-            formátované_datumy = []
-            for d in buduce_obsadene:
-                try:
-                    dt = datetime.strptime(d, "%Y-%m-%d")
-                    formátované_datumy.append(dt.strftime("%d.%m.%Y"))
-                except:
-                    formátované_datumy.append(d)
-            
-            st.markdown(", ".join([f"`{d}`" for d in formátované_datumy]))
-            st.info("💡 Všetky ostatné neuvedené dni sú momentálne **voľné**!")
-        else:
-            st.success("🎉 Momentálne nemáme žiadne obsadené termíny. Všetky dni sú voľné!")
-
     st.markdown("<h4 style='text-align: center; margin-bottom: 5px; margin-top: 20px;'>Výpočet ceny vystúpenia</h4>", unsafe_allow_html=True)
     
     typ_akcie = st.selectbox(
@@ -365,19 +436,42 @@ if menu == "🎸 Rezervácia":
         </div>
     """, unsafe_allow_html=True)
     
-    # Informácia pri výbere dátumu
-    st.subheader("📩 Rezervačný dopyt")
+    # --- KALENDÁR OBSADENOSTI ---
+    st.markdown("<h4 style='color: #d4af37; text-align: center;'>📅 Kontrola dostupnosti</h4>", unsafe_allow_html=True)
     
-    datum_vyber = st.date_input("Dátum akcie", min_value=date.today())
+    dnes = datetime.now().date()
+    col_mesiac, col_rok = st.columns(2)
     
-    # Okamžitá kontrola dostupnosti po výbere dátumu
-    if str(datum_vyber) in obsadene_datumy:
-        st.error(f"❌ Dátum {datum_vyber.strftime('%d.%m.%Y')} je už OBSADENÝ! Prosím, vyberte si iný termín.")
-    else:
-        st.success(f"✅ Dátum {datum_vyber.strftime('%d.%m.%Y')} je VOĽNÝ! Môžete pokračovať v vyplnení rezervácie.")
-
+    with col_mesiac:
+        mesiac_volba = st.selectbox("Vyberte mesiac:", 
+            list(range(dnes.month, dnes.month + 13)), 
+            format_func=lambda x: calendar.month_name[x if x <= 12 else x - 12],
+            key="mesiac_selector")
+    
+    with col_rok:
+        rok_volba = st.selectbox("Vyberte rok:", 
+            [dnes.year, dnes.year + 1],
+            key="rok_selector")
+    
+    # Ak je mesiac väčší ako 12, nastav na ďalší rok
+    if mesiac_volba > 12:
+        mesiac_volba = mesiac_volba - 12
+        rok_volba = dnes.year + 1
+    
+    # Zobraz kalendár
+    calendar_html = zobraz_kalendar_obsadenosti(st.session_state['db_data'], rok_volba, mesiac_volba)
+    st.markdown(calendar_html, unsafe_allow_html=True)
+    
+    # --- REZERVAČNÝ FORMULÁR ---
     with st.form("main_booking"):
-        cas = st.time_input("Čas začiatku")
+        st.subheader("📩 Rezervačný dopyt")
+        
+        col1, col2 = st.columns(2)
+        with col1: 
+            datum = st.date_input("Dátum akcie", min_value=datetime.now())
+        with col2: 
+            cas = st.time_input("Čas začiatku")
+            
         meno = st.text_input("Meno a priezvisko")
         tel = st.text_input("Telefónne číslo")
         email = st.text_input("E-mail")
@@ -386,17 +480,17 @@ if menu == "🎸 Rezervácia":
         if st.form_submit_button("ODOSLAŤ REZERVÁCIU S TOUTO CENOU"):
             db = nacti_data()
             
-            if any(a['datum'] == str(datum_vyber) for a in db if a.get('stav') == 'schvalene'):
-                st.error("Tento termín je už obsadený. Vyberte si prosím iný dátum.")
+            if any(a['datum'] == str(datum) for a in db if a.get('stav') == 'schvalene'):
+                st.error("❌ Tento termín je už obsadený. Prosím, vyberte si iný dátum.")
             elif not meno or not tel:
-                st.warning("Vyplňte, prosím, vaše meno a telefónne číslo.")
+                st.warning("⚠️ Vyplňte, prosím, vaše meno a telefónne číslo.")
             else:
                 txt_aparatury = "S APARATÚROU" if potrebuje_aparaturu else "BEZ aparatúry"
                 vypocitana_cena_txt = f"{celkova_cena:.2f} € ({popis_hudby}, {txt_aparatury}, {km} km jednosmerne)"
                 
                 nova = {
                     "id": str(datetime.now().timestamp()), 
-                    "datum": str(datum_vyber), 
+                    "datum": str(datum), 
                     "cas": f"{cas.strftime('%H:%M')}",
                     "meno": meno, 
                     "tel": tel, 
@@ -412,16 +506,12 @@ if menu == "🎸 Rezervácia":
                         if res.data:
                             st.session_state['db_data'] = nacti_data()
                             
-                            posli_upozornenie(f"""Nový dopyt: {datum_vyber}
-Meno: {meno} ({tel})
-Typ: {typ_akcie}
-Miesto: {mesto_detaily}
-Cena: {vypocitana_cena_txt}""")
+                            posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nTyp: {typ_akcie}\nMiesto: {mesto_detaily}\nCena: {vypocitana_cena_txt}")
                             if email:
-                                posli_email_zakaznikovi(email, meno, str(datum_vyber), cas.strftime('%H:%M'), typ_akcie, vypocitana_cena_txt, mesto_detaily)
+                                posli_email_zakaznikovi(email, meno, str(datum), cas.strftime('%H:%M'), typ_akcie, vypocitana_cena_txt, mesto_detaily)
                             
                             st.balloons()
-                            st.success("Odoslané! Ozveme sa vám. ✅ Taktiež sme Vám odoslali potvrdzujúci e-mail.")
+                            st.success("✅ Odoslané! Ozveme sa vám. Taktiež sme Vám odoslali potvrdzujúci e-mail.")
                         else:
                             st.error("Chyba: Dáta sa nepodarilo zapísať do databázy.")
                     except Exception as e:
@@ -735,7 +825,7 @@ else:
             with st.form("add_manual"):
                 st.subheader("➕ Manuálne pridať akciu")
                 
-                d = st.date_input("Dátum akcie", value=date.today())
+                d = st.date_input("Dátum akcie", value=datetime.today())
                 t_time = st.time_input("Čas začiatku", value=datetime.now().time())
                 m = st.text_input("Meno a priezvisko / Názov akcie")
                 tel_cislo = st.text_input("Telefónne číslo")
