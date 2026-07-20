@@ -399,7 +399,7 @@ if menu == "🎸 Rezervácia":
         email = st.text_input("E-mail")
         mesto_detaily = st.text_area("Presná adresa konania (mesto/sála) a iné detaily")
         
-        # --- ÚPRAVA TLAČIDLA - DEAKTIVOVAŤ AK JE TERMÍN OBSADENÝ ---
+        # --- TLAČIDLO S KONTROLOU OBSADENOSTI ---
         tlacidlo_odoslat = st.form_submit_button("ODOSLAŤ REZERVÁCIU S TOUTO CENOU")
         
         if tlacidlo_odoslat:
@@ -627,4 +627,5 @@ else:
                 kalkulacia = a.get('vypocitana_cena', 'Nenapočítaná')
                 with st.expander(f"📅 {a['datum']} - {a.get('meno', 'Akcia')}"):
                     st.write(f"📞 {a.get('tel', '')} | 🕒 {a.get('cas', '')}")
-                    st.write(f"💰 **
+                    st.write(f"💰 **Orientačná kalkulácia:** {kalkulacia}")
+                    st.markdown(f"""<div class="admin-detail-box"><b>Miesto/Poznámka:</b><br>{info_mesto}</div>""", unsafe
