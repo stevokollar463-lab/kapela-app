@@ -53,12 +53,6 @@ def apply_style():
             color: #ffffff;
         }}
         
-        [data-testid="collapsedSidebarNoOverlay"], 
-        [data-testid="stSidebar"], 
-        button[data-testid="stSidebarCollapseButton"] {{
-            display: none !important;
-        }}
-        
         [data-testid="stToolbar"] {{
             display: none !important;
         }}
@@ -329,7 +323,7 @@ def nacti_recenzie():
         try:
             response = supabase.table("recenzie").select("*").order("created_at", desc=True).execute()
             return response.data if response.data else []
-        except Exception as e:
+        except Exception:
             pass
     return []
 
@@ -349,9 +343,9 @@ def nacti_media():
                                 vysledky["fotky"].append(public_url)
                             elif ext in ["mp4", "mov", "avi", "webm"]:
                                 vysledky["videa"].append(public_url)
-                        except Exception as e:
+                        except Exception:
                             pass
-        except Exception as e:
+        except Exception:
             pass
     return vysledky
 
@@ -373,14 +367,12 @@ def nacti_vsetky_media():
                             "velkost": subor.get("metadata", {}).get("size", 0),
                             "vytvorene": subor.get("created_at", "")
                         })
-        except Exception as e:
+        except Exception:
             pass
     return subbory_list
 
 def zobraz_kalendar_obsadenosti(db_data, rok, mesiac):
-    """Vykreslí mesiac, kde obsadené (schválené) dni sú označené X."""
     obsadene = set()
-
     for event in db_data:
         if event.get("stav") == "schvalene":
             try:
@@ -427,8 +419,7 @@ def hvezdicky_html(pocet):
     return "⭐" * pocet + "☆" * (5 - pocet)
 
 def zobraz_footer_tlacidla(is_recenzie_page=False):
-    """Zobrazí 3 tlačidlá v footri"""
-    col1, col2, col3 = st.columns(3)
+    col1, col2 = st.columns(2)
     
     with col1:
         if st.button("❓ FAQ", key=f"btn_faq_{st.session_state.get('page_id', 'main')}", use_container_width=True):
@@ -436,11 +427,6 @@ def zobraz_footer_tlacidla(is_recenzie_page=False):
             st.rerun()
     
     with col2:
-        if st.button("⭐ RECENZIE", key=f"btn_rec_{st.session_state.get('page_id', 'main')}", use_container_width=True):
-            st.session_state[f"expand_rec_{st.session_state.get('page_id', 'main')}"] = not st.session_state.get(f"expand_rec_{st.session_state.get('page_id', 'main')}", False)
-            st.rerun()
-    
-    with col3:
         if st.button("📞 KONTAKT", key=f"btn_kon_{st.session_state.get('page_id', 'main')}", use_container_width=True):
             st.session_state[f"expand_kon_{st.session_state.get('page_id', 'main')}"] = not st.session_state.get(f"expand_kon_{st.session_state.get('page_id', 'main')}", False)
             st.rerun()
@@ -474,59 +460,7 @@ def zobraz_footer_tlacidla(is_recenzie_page=False):
             """, unsafe_allow_html=True)
         
         st.markdown('</div>', unsafe_allow_html=True)
-    
-    # RECENZIE
-    if st.session_state.get(f"expand_rec_{st.session_state.get('page_id', 'main')}", False):
-        st.markdown('<div class="expandable-section">', unsafe_allow_html=True)
-        st.markdown('<div class="section-title">⭐ Zanechaj svoj ohlas</div>', unsafe_allow_html=True)
-        
-        with st.form(f"nova_recenzia_{st.session_state.get('page_id', 'main')}"):
-            typ_mena = st.radio("Ako sa chceš reprezentovať?", 
-                ["❌ Anonymne", "✅ Pod mojim menom"],
-                horizontal=True,
-                key=f"radio_rec_{st.session_state.get('page_id', 'main')}"
-            )
-            
-            meno = ""
-            if typ_mena == "✅ Pod mojim menom":
-                meno = st.text_input("Tvoje meno", placeholder="Napíš svoje meno...", key=f"input_meno_{st.session_state.get('page_id', 'main')}")
-                if not meno:
-                    meno = "Anonymný"
-            else:
-                meno = "Anonymný"
-            
-            hvezdicky = st.slider("Ako hodnotíš našu kapelu? (1-5 hviezd)", min_value=1, max_value=5, value=5, key=f"slider_rec_{st.session_state.get('page_id', 'main')}")
-            
-            text = st.text_area("Tvoj komentár", placeholder="Napíš nám tvoj názor na naše vystúpenie...", height=120, key=f"textarea_rec_{st.session_state.get('page_id', 'main')}")
-            
-            if st.form_submit_button("🚀 ODOSLAŤ RECENZIU", key=f"submit_rec_{st.session_state.get('page_id', 'main')}"):
-                if not text or len(text) < 5:
-                    st.warning("⚠️ Napíš prosím aspoň pár slov do komentára!")
-                else:
-                    nova_recenzia = {
-                        "id": str(datetime.now().timestamp()),
-                        "meno": meno,
-                        "hvezdicky": hvezdicky,
-                        "text": text,
-                        "created_at": datetime.now().isoformat()
-                    }
-                    
-                    if supabase:
-                        try:
-                            res = supabase.table("recenzie").insert(nova_recenzia).execute()
-                            if res.data:
-                                st.success("✅ Ďakujeme za tvoj ohlas! 🎉")
-                                st.balloons()
-                                st.rerun()
-                            else:
-                                st.error("Chyba: Recenzija sa nepodarila uložiť.")
-                        except Exception as e:
-                            st.error(f"Chyba: {e}")
-                    else:
-                        st.error("Chyba: Databáza Supabase nie je pripojená!")
-        
-        st.markdown('</div>', unsafe_allow_html=True)
-    
+
     # KONTAKT
     if st.session_state.get(f"expand_kon_{st.session_state.get('page_id', 'main')}", False):
         st.markdown('<div class="expandable-section">', unsafe_allow_html=True)
@@ -607,12 +541,22 @@ E-mail: parobciovcanske@gmail.com
         st.warning(f"Nepodarilo sa odoslať potvrdzujúci e-mail zákazníkovi: {e}")
         return False
 
-st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎻", layout="centered", initial_sidebar_state="collapsed")
+st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎻", layout="centered", initial_sidebar_state="expanded")
 apply_style()
+
+# --- ĽAVÝ BOČNÝ PANEL ---
+with st.sidebar:
+    st.markdown("## 📌 Rýchle menu")
+    if st.button("⭐ Pridať recenziu", use_container_width=True):
+        st.session_state["open_recenzie_form"] = True
+    st.markdown("---")
+    st.markdown("### Kontakt")
+    st.write("📞 0944 757 122")
+    st.write("📧 parobciovcanske@gmail.com")
 
 menu = st.radio(
     "NAVIGÁCIA", 
-    ["🎸 Rezervácia", "💰 Cenník", "ℹ️ O nás", "📸 Galéria", "⭐ Recenzie", "🔐 Administrácia"], 
+    ["🎸 Rezervácia", "💰 Cenník", "ℹ️ O nás", "📸 Galéria", "🔐 Administrácia"], 
     horizontal=True,
     label_visibility="collapsed"
 )
@@ -621,6 +565,58 @@ st.markdown("<br>", unsafe_allow_html=True)
 
 if 'db_data' not in st.session_state:
     st.session_state['db_data'] = nacti_data()
+
+if "open_recenzie_form" not in st.session_state:
+    st.session_state["open_recenzie_form"] = False
+
+if st.session_state["open_recenzie_form"]:
+    st.markdown("## ⭐ Pridať recenziu")
+    with st.form("global_recenzia_form"):
+        typ_mena = st.radio(
+            "Ako sa chceš reprezentovať?",
+            ["❌ Anonymne", "✅ Pod mojim menom"],
+            horizontal=True
+        )
+
+        meno = "Anonymný"
+        if typ_mena == "✅ Pod mojim menom":
+            m = st.text_input("Tvoje meno")
+            if m:
+                meno = m
+
+        hvezdicky = st.slider("Hodnotenie (1-5)", 1, 5, 5)
+        text = st.text_area("Tvoj komentár", height=120)
+
+        c1, c2 = st.columns(2)
+        odoslat = c1.form_submit_button("🚀 Odoslať recenziu")
+        zavriet = c2.form_submit_button("❌ Zavrieť")
+
+        if zavriet:
+            st.session_state["open_recenzie_form"] = False
+            st.rerun()
+
+        if odoslat:
+            if not text or len(text) < 5:
+                st.warning("⚠️ Napíš prosím aspoň pár slov do komentára!")
+            else:
+                nova_recenzia = {
+                    "id": str(datetime.now().timestamp()),
+                    "meno": meno,
+                    "hvezdicky": hvezdicky,
+                    "text": text,
+                    "created_at": datetime.now().isoformat()
+                }
+                if supabase:
+                    try:
+                        res = supabase.table("recenzie").insert(nova_recenzia).execute()
+                        if res.data:
+                            st.success("✅ Ďakujeme za recenziu!")
+                            st.session_state["open_recenzie_form"] = False
+                            st.rerun()
+                        else:
+                            st.error("Recenziu sa nepodarilo uložiť.")
+                    except Exception as e:
+                        st.error(f"Chyba: {e}")
 
 # --- 1. REZERVÁCIA ---
 if menu == "🎸 Rezervácia":
@@ -894,34 +890,7 @@ elif menu == "📸 Galéria":
     
     zobraz_footer_tlacidla()
 
-# --- 5. RECENZIE ---
-elif menu == "⭐ Recenzie":
-    st.session_state['page_id'] = 'recenzie'
-    st.title("⭐ Ohlasy našich zákazníkov")
-    
-    recenzie = nacti_recenzie()
-    
-    if recenzie:
-        st.subheader(f"💬 {len(recenzie)} ohlasov od našich zákazníkov")
-        for rec in recenzie:
-            st.markdown(f"""
-            <div style="background: rgba(0, 0, 0, 0.8); border: 2px solid #d4af37; padding: 15px; border-radius: 12px; margin: 12px 0;">
-                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; color: #d4af37;">
-                    <span style="font-weight: bold;">{rec.get('meno', 'Anonymný')}</span>
-                    <span style="font-size: 1.3rem; color: #FFD700;">{hvezdicky_html(rec.get('hvezdicky', 5))}</span>
-                </div>
-                <div style="color: #ccc; font-style: italic; margin-top: 10px; line-height: 1.5;">"{rec.get('text', '')}"</div>
-                <div style="font-size: 0.85rem; color: #999; margin-top: 8px;">📅 {rec.get('created_at', '')[:10]}</div>
-            </div>
-            """, unsafe_allow_html=True)
-        
-        st.markdown("<hr style='border-color: rgba(212,175,55,0.3); margin: 30px 0;'>", unsafe_allow_html=True)
-    else:
-        st.info("Zatiaľ tu nie sú žiadne recenzie. Buď prvý a nechaj svoj ohlas! 😊")
-    
-    zobraz_footer_tlacidla(is_recenzie_page=True)
-
-# --- 6. ADMIN ---
+# --- 5. ADMIN ---
 else:
     st.session_state['page_id'] = 'admin'
     col_title, col_logout = st.columns([3, 1])
