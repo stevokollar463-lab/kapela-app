@@ -2,4 +2,4 @@ streamlit
 pandas
 pushbullet.py
 supabase
-openai>=1.40.0
+
