@@ -1047,12 +1047,6 @@ if menu == "🎸 Rezervácia":
     prplatok_aparatura = CENA_APARATURA if potrebuje_aparaturu else 0
     celkova_cena = cena_hudba + cena_doprava + prplatok_aparatura
 
-    detaily_vypoctu = f"{popis_hudby}: {cena_hudba:.2f} €"
-    if potrebuje_aparaturu:
-        detaily_vypoctu += f" | Ozvučenie: {CENA_APARATURA:.2f} €"
-    detaily_vypoctu += f" | Doprava {km*2} km celkovo: {cena_doprava:.2f} €"
-
-    # SKRYTÁ kalkulácia
     st.info("💡 Vypočítaná cena vám príde na e-mail na potvrdenie.")
 
     with st.expander("📅 Zobraziť kalendár obsadenosti"):
@@ -1134,7 +1128,6 @@ if menu == "🎸 Rezervácia":
 
     zobraz_footer_tlacidla()
 
-# --- 2. PODROBNÝ CENNÍK ---
 elif menu == "💰 Cenník":
     st.session_state['page_id'] = 'cennik'
     st.title("💰 Cenník služieb")
@@ -1245,8 +1238,8 @@ elif menu == "ℹ️ O nás":
     )
 
     zobraz_footer_tlacidla()
-   
-    elif menu == "📸 Galéria":
+
+elif menu == "📸 Galéria":
     st.session_state['page_id'] = 'galeria'
     st.title("📸 Galéria a Videá")
     media = nacti_media()
@@ -1574,16 +1567,14 @@ else:
                                     st.rerun()
                                 except Exception as e:
                                     st.error(f"Chyba pri vymazávaní: {e}")
+
 # -------------------- LIVE CHAT UI --------------------
 st.markdown("<hr style='border-color: rgba(212,175,55,0.3); margin-top: 30px;'>", unsafe_allow_html=True)
 st.subheader("💬 Live chat asistent")
 
 if "chat_messages" not in st.session_state:
     st.session_state.chat_messages = [
-        {
-            "role": "assistant",
-            "content": "Ahoj 👋 Som chatbot Ovčanske Parobci. Napíš mi typ akcie, hodiny a km, a hneď ti prepočítam orientačnú cenu."
-        }
+        {"role": "assistant", "content": "Ahoj 👋 Som chatbot Ovčanske Parobci. Napíš mi typ akcie, hodiny a km, a hneď ti prepočítam orientačnú cenu."}
     ]
 
 for msg in st.session_state.chat_messages:
