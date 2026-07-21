@@ -11,6 +11,7 @@ import json
 import calendar
 import secrets
 import urllib.parse
+import streamlit.components.v1 as components
 
 # --- BEZPEČNÁ KONFIGURÁCIA (IBA st.secrets) ---
 try:
@@ -322,6 +323,25 @@ def apply_style():
         }}
         </style>
     """, unsafe_allow_html=True)
+
+
+def inject_live_chat():
+    tawk_script = """
+    <!--Start of Tawk.to Script-->
+    <script type="text/javascript">
+    var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+    (function(){
+    var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+    s1.async=true;
+    s1.src='https://embed.tawk.to/6a5f209b4693711d483c3318/1ju1peoj1';
+    s1.charset='UTF-8';
+    s1.setAttribute('crossorigin','*');
+    s0.parentNode.insertBefore(s1,s0);
+    })();
+    </script>
+    <!--End of Tawk.to Script-->
+    """
+    components.html(tawk_script, height=0, width=0)
 
 
 def nacti_data():
@@ -773,6 +793,7 @@ def process_confirmation_from_query():
 st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎻", layout="centered", initial_sidebar_state="collapsed")
 apply_style()
 process_confirmation_from_query()
+inject_live_chat()
 
 menu = st.radio(
     "NAVIGÁCIA",
