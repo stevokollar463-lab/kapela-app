@@ -11,8 +11,6 @@ import json
 import calendar
 import secrets
 import urllib.parse
-import re
-from openai import OpenAI
 
 # --- BEZPEČNÁ KONFIGURÁCIA (IBA st.secrets) ---
 try:
@@ -441,220 +439,6 @@ def hvezdicky_html(pocet):
     return "⭐" * pocet + "☆" * (5 - pocet)
 
 
-# -------------------- LIVE CHAT: pomocné funkcie --------------------
-
-def normalize_text(s: str) -> str:
-    if not s:
-        return ""
-    s = s.lower()
-    replacements = {
-        "á": "a", "ä": "a", "č": "c", "ď": "d", "é": "e", "ě": "e", "í": "i",
-        "ĺ": "l", "ľ": "l", "ň": "n", "ó": "o", "ô": "o", "ŕ": "r", "š": "s",
-        "ť": "t", "ú": "u", "ý": "y", "ž": "z"
-    }
-    for k, v in replacements.items():
-        s = s.replace(k, v)
-    return s
-
-
-def extract_first_number(patterns, text, cast_type=float):
-    for p in patterns:
-        m = re.search(p, text)
-        if m:
-            try:
-                val = m.group(1).replace(",", ".")
-                return cast_type(val)
-            except Exception:
-                pass
-    return None
-
-
-def parse_price_request(user_msg: str):
-    t = normalize_text(user_msg)
-
-    typ = None
-    if any(k in t for k in ["rodinna oslava", "oslava", "jubileum", "narodenin"]):
-        typ = "oslava"
-    elif any(k in t for k in ["svadobny sprievod", "sprievod", "odobierk", "svadba"]):
-        typ = "sprievod"
-    elif any(k in t for k in ["pomedzi stoly", "stoly", "posedenie"]):
-        typ = "stoly"
-
-    hodiny = extract_first_number(
-        [
-            r"(\d+(?:[.,]\d+)?)\s*h(?:od)?\b",
-            r"na\s+(\d+(?:[.,]\d+)?)\s*hod",
-            r"(\d+(?:[.,]\d+)?)\s*hodin"
-        ],
-        t,
-        float
-    )
-    if hodiny is not None:
-        hodiny = max(1, int(round(hodiny)))
-
-    polhodiny_navyse = extract_first_number(
-        [r"(\d+)\s*polhod", r"(\d+)\s*x\s*polhod"],
-        t,
-        int
-    )
-
-    km = extract_first_number([r"(\d+(?:[.,]\d+)?)\s*km"], t, float)
-    if km is None:
-        km = 0
-    km = max(0, int(round(km)))
-
-    aparatura = any(k in t for k in ["aparat", "ozvucen", "repro", "mixpult", "mikrofon"])
-
-    return {
-        "typ": typ,
-        "hodiny": hodiny,
-        "polhodiny_navyse": polhodiny_navyse,
-        "km": km,
-        "aparatura": aparatura
-    }
-
-
-def compute_price_from_params(params: dict):
-    typ = params.get("typ")
-    hodiny = params.get("hodiny")
-    polhodiny_navyse = params.get("polhodiny_navyse")
-    km = params.get("km", 0)
-    aparatura = params.get("aparatura", False)
-
-    if typ not in ["oslava", "sprievod", "stoly"]:
-        return None
-
-    if typ == "oslava":
-        h = hodiny if hodiny else 1
-        cena_hudba = h * CENA_OSLAVA_HODINA
-        popis = f"Rodinná oslava ({h} hod.)"
-    elif typ == "sprievod":
-        ph = polhodiny_navyse if polhodiny_navyse is not None else 0
-        cena_hudba = CENA_SPRIEVOD_ZAKLAD + (ph * CENA_SPRIEVOD_POLHODINA)
-        popis = f"Svadobný sprievod (2 hod. + {ph}x polhodina navyše)" if ph > 0 else "Svadobný sprievod (základ do 2 hod.)"
-    else:
-        h = hodiny if hodiny else 1
-        cena_hudba = h * CENA_STOLY_HODINA
-        popis = f"Hranie pomedzi stoly ({h} hod.)"
-
-    cena_doprava = km * 2 * CENA_ZA_KM
-    priplatok_aparatura = CENA_APARATURA if aparatura else 0
-    celkova = cena_hudba + cena_doprava + priplatok_aparatura
-
-    return {
-        "popis": popis,
-        "cena_hudba": cena_hudba,
-        "cena_doprava": cena_doprava,
-        "aparat": priplatok_aparatura,
-        "km_jednosmerne": km,
-        "km_celkovo": km * 2,
-        "celkova": celkova
-    }
-
-
-def format_price_breakdown(b):
-    return (
-        f"💰 **Orientačný prepočet ceny**\n\n"
-        f"- {b['popis']}: **{b['cena_hudba']:.2f} €**\n"
-        f"- Doprava ({b['km_celkovo']} km celkovo): **{b['cena_doprava']:.2f} €**\n"
-        f"- Ozvučenie: **{b['aparat']:.2f} €**\n\n"
-        f"➡️ **Spolu: {b['celkova']:.2f} €**"
-    )
-
-
-def build_local_context() -> str:
-    return (
-        "Informácie o kapele Ovčanske Parobci:\n"
-        f"- Rodinná oslava/jubileum: {CENA_OSLAVA_HODINA} EUR/hod.\n"
-        f"- Svadobný sprievod: {CENA_SPRIEVOD_ZAKLAD} EUR do 2 hodín, potom +{CENA_SPRIEVOD_POLHODINA} EUR za každú začatú polhodinu.\n"
-        f"- Hranie pomedzi stoly: {CENA_STOLY_HODINA} EUR/hod.\n"
-        f"- Ozvučenie: +{CENA_APARATURA} EUR.\n"
-        f"- Doprava: {CENA_ZA_KM:.2f} EUR/km, počíta sa tam aj späť.\n"
-        "- Kontakt: tel. 0944 757 122, e-mail: parobciovcanske@gmail.com, obec Ovčie.\n"
-        "- Rezervácia prebieha cez formulár v aplikácii.\n"
-    )
-
-
-def faq_fallback_answer(user_msg: str) -> str:
-    t = normalize_text(user_msg)
-
-    parsed = parse_price_request(user_msg)
-    computed = compute_price_from_params(parsed)
-    if computed:
-        return format_price_breakdown(computed)
-
-    if any(k in t for k in ["cena", "cennik", "kolko", "eur", "€"]):
-        return (
-            f"🎶 Orientačné ceny:\n"
-            f"- Rodinná oslava/jubileum: {CENA_OSLAVA_HODINA} €/hod.\n"
-            f"- Svadobný sprievod: {CENA_SPRIEVOD_ZAKLAD} € (do 2 hod.) + {CENA_SPRIEVOD_POLHODINA} € / každá ďalšia polhodina\n"
-            f"- Hranie pomedzi stoly: {CENA_STOLY_HODINA} €/hod.\n"
-            f"- Ozvučenie: +{CENA_APARATURA} €\n"
-            f"- Doprava: {CENA_ZA_KM:.2f} €/km (tam aj späť)\n"
-        )
-
-    if any(k in t for k in ["kontakt", "telefon", "tel", "email", "instagram"]):
-        return (
-            "📞 Kontakt:\n"
-            "- Telefón: 0944 757 122\n"
-            "- E-mail: parobciovcanske@gmail.com\n"
-            "- Instagram: https://www.instagram.com/ovcanske_parobci/"
-        )
-
-    if any(k in t for k in ["rezerv", "termin", "volny", "obsaden"]):
-        return "📅 Termín si overíš v sekcii Rezervácia → Zobraziť kalendár obsadenosti."
-
-    return "Rád poradím s cenou, rezerváciou, kontaktom alebo termínom 🙂"
-
-
-def ai_chat_answer(user_msg: str) -> str:
-    # 1) presný výpočet ceny lokálne
-    parsed = parse_price_request(user_msg)
-    computed = compute_price_from_params(parsed)
-    if computed:
-        return format_price_breakdown(computed)
-
-    # 2) AI odpovede na bežné otázky
-    api_key = st.secrets.get("OPENAI_API_KEY", None)
-    if not api_key:
-        return faq_fallback_answer(user_msg)
-
-    try:
-        client = OpenAI(api_key=api_key)
-
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "Si virtuálny asistent hudobnej skupiny Ovčanske Parobci. "
-                    "Odpovedaj po slovensky prirodzene, stručne a užitočne. "
-                    "Nevymýšľaj si fakty mimo kontextu. "
-                    "Ak si neistý, odporuč kontakt: 0944 757 122 alebo parobciovcanske@gmail.com."
-                )
-            },
-            {"role": "system", "content": build_local_context()},
-        ]
-
-        # posledná história (bez duplikácie aktuálnej otázky)
-        history = st.session_state.get("chat_messages", [])
-        for m in history[-8:]:
-            if m.get("role") in ("user", "assistant"):
-                messages.append({"role": m["role"], "content": m["content"]})
-
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0.7,
-            top_p=0.95,
-            messages=messages
-        )
-
-        answer = (resp.choices[0].message.content or "").strip()
-        return answer if answer else faq_fallback_answer(user_msg)
-
-    except Exception:
-        return faq_fallback_answer(user_msg)
-
-
 def zobraz_footer_tlacidla(is_recenzie_page=False):
     col1, col2, col3 = st.columns(3)
 
@@ -1051,6 +835,12 @@ if menu == "🎸 Rezervácia":
     prplatok_aparatura = CENA_APARATURA if potrebuje_aparaturu else 0
     celkova_cena = cena_hudba + cena_doprava + prplatok_aparatura
 
+    detaily_vypoctu = f"{popis_hudby}: {cena_hudba:.2f} €"
+    if potrebuje_aparaturu:
+        detaily_vypoctu += f" | Ozvučenie: {CENA_APARATURA:.2f} €"
+    detaily_vypoctu += f" | Doprava {km*2} km celkovo: {cena_doprava:.2f} €"
+
+    # SKRYTÁ kalkulácia
     st.info("💡 Vypočítaná cena vám príde na e-mail na potvrdenie.")
 
     with st.expander("📅 Zobraziť kalendár obsadenosti"):
@@ -1132,6 +922,7 @@ if menu == "🎸 Rezervácia":
 
     zobraz_footer_tlacidla()
 
+# --- 2. PODROBNÝ CENNÍK ---
 elif menu == "💰 Cenník":
     st.session_state['page_id'] = 'cennik'
     st.title("💰 Cenník služieb")
@@ -1221,14 +1012,17 @@ elif menu == "ℹ️ O nás":
         unsafe_allow_html=True
     )
 
+    # Mapa
     st.components.v1.iframe(
         "https://www.google.com/maps?q=Ov%C4%8Die,+Slovensko&output=embed",
         height=400,
         scrolling=False
     )
 
+    # Medzera pod mapou
     st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
 
+    # Tlačidlo s väčším spodným odsadením, aby sa neprekrývalo s ďalšou sekciou
     st.markdown(
         """
         <div style="text-align:center; margin-top:10px; margin-bottom:40px;">
@@ -1242,6 +1036,7 @@ elif menu == "ℹ️ O nás":
     )
 
     zobraz_footer_tlacidla()
+    
 
 elif menu == "📸 Galéria":
     st.session_state['page_id'] = 'galeria'
@@ -1571,139 +1366,6 @@ else:
                                     st.rerun()
                                 except Exception as e:
                                     st.error(f"Chyba pri vymazávaní: {e}")
-def get_band_knowledge() -> str:
-    return """
-OVČANSKE PAROBCI - INTERNÁ ZNALOSTNÁ BÁZA
-
-IDENTITA:
-- Sme ľudová hudobná skupina Ovčanske Parobci.
-- Pôsobíme v obci Ovčie, Slovensko.
-- Kapela vznikla v roku 2020.
-- Sme 5-členná kapela.
-
-NÁSTROJOVÉ OBSADENIE:
-- 2x akordeón
-- 1x husle
-- 1x bubon
-- 1x saxofón
-
-ČO HRÁME / KDE VYSTUPUJEME:
-- Rodinné oslavy a jubileá
-- Svadobné sprievody a odobierky
-- Hranie pomedzi stoly / posedenia
-- Rodinné a firemné podujatia
-
-CENNÍK:
-- Rodinná oslava / jubileum: 120 € / hodina
-- Svadobný sprievod a odobierka: 250 € základ (do 2 hodín)
-- Každá ďalšia začatá polhodina pri sprievode: +50 €
-- Hranie pomedzi stoly / posedenie: 120 € / hodina
-- Profesionálna aparatúra: +100 € jednorazovo
-- Doprava: 0.50 € / km (počíta sa tam aj späť)
-
-KONTAKT:
-- Telefón: 0944 757 122
-- E-mail: parobciovcanske@gmail.com
-- Instagram: https://www.instagram.com/ovcanske_parobci/
-"""
-
-
-def build_local_context() -> str:
-    dynamic_prices = (
-        "\nAKTUÁLNE CENY Z APLIKÁCIE:\n"
-        f"- Rodinná oslava/jubileum: {CENA_OSLAVA_HODINA} EUR/hod.\n"
-        f"- Svadobný sprievod: {CENA_SPRIEVOD_ZAKLAD} EUR do 2 hodín, potom +{CENA_SPRIEVOD_POLHODINA} EUR za každú začatú polhodinu.\n"
-        f"- Hranie pomedzi stoly: {CENA_STOLY_HODINA} EUR/hod.\n"
-        f"- Ozvučenie: +{CENA_APARATURA} EUR.\n"
-        f"- Doprava: {CENA_ZA_KM:.2f} EUR/km (tam aj späť).\n"
-    )
-    return get_band_knowledge() + dynamic_prices
-
-
-def ai_chat_answer(user_msg: str) -> str:
-    parsed = parse_price_request(user_msg)
-    computed = compute_price_from_params(parsed)
-    if computed:
-        return format_price_breakdown(computed)
-
-    fallback_text = "S tým vám neviem pomôcť, kontaktujte ich prosím na 0944 757 122 alebo parobciovcanske@gmail.com."
-    api_key = st.secrets.get("OPENAI_API_KEY", None)
-    if not api_key:
-        return fallback_text
-
-    try:
-        client = OpenAI(api_key=api_key)
-
-        messages = [
-            {
-                "role": "system",
-                "content": (
-                    "Si oficiálny asistent kapely Ovčanske Parobci. "
-                    "Odpovedaj po slovensky prirodzene, ľudsky, stručne a vecne. "
-                    "Používaj výhradne informácie z dodaného kontextu. "
-                    "Nevymýšľaj si. "
-                    f"Ak niečo nevieš alebo to nie je v kontexte, odpovedz PRESNE touto vetou: {fallback_text}"
-                )
-            },
-            {"role": "system", "content": build_local_context()},
-        ]
-
-        history = st.session_state.get("chat_messages", [])
-        for m in history[-10:]:
-            role = m.get("role")
-            content = m.get("content", "")
-            if role in ("user", "assistant") and content:
-                messages.append({"role": role, "content": content})
-
-        messages.append({"role": "user", "content": user_msg})
-
-        resp = client.chat.completions.create(
-            model="gpt-4o-mini",
-            temperature=0.6,
-            top_p=0.95,
-            messages=messages
-        )
-
-        answer = (resp.choices[0].message.content or "").strip()
-        return answer if answer else fallback_text
-
-    except Exception:
-        return fallback_text
-# -------------------- LIVE CHAT UI --------------------
-st.markdown("<hr style='border-color: rgba(212,175,55,0.3); margin-top: 30px;'>", unsafe_allow_html=True)
-st.subheader("💬 Live chat asistent")
-
-if "chat_messages" not in st.session_state:
-    st.session_state.chat_messages = [
-        {"role": "assistant", "content": "Ahoj 👋 Kľudne sa pýtaj na čokoľvek okolo kapely, cien, termínov alebo rezervácie."}
-    ]
-
-for msg in st.session_state.chat_messages:
-    with st.chat_message(msg["role"]):
-        st.markdown(msg["content"])
-
-user_prompt = st.chat_input("Napíš otázku...")
-
-if user_prompt:
-    with st.chat_message("user"):
-        st.markdown(user_prompt)
-    st.session_state.chat_messages.append({"role": "user", "content": user_prompt})
-
-    answer = ai_chat_answer(user_prompt)
-
-    with st.chat_message("assistant"):
-        st.markdown(answer)
-    st.session_state.chat_messages.append({"role": "assistant", "content": answer})
-
-col_chat_a, col_chat_b = st.columns(2)
-with col_chat_a:
-    if st.button("🧹 Vymazať chat", key="clear_chat_btn"):
-        st.session_state.chat_messages = [
-            {"role": "assistant", "content": "Chat bol vymazaný. Ako ti môžem pomôcť? 😊"}
-        ]
-        st.rerun()
-with col_chat_b:
-    st.write("")
 
 st.markdown('''
 <div style="text-align:center; margin-top:50px; color:#ccc; line-height: 1.6;">
