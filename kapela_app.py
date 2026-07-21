@@ -104,7 +104,6 @@ def apply_style():
             box-shadow: 0 0 15px rgba(212, 175, 55, 0.20);
         }}
 
-        /* FOOTER S TLAČIDLAMI */
         .footer-buttons {{
             display: flex;
             justify-content: space-around;
@@ -142,7 +141,6 @@ def apply_style():
             transform: translateY(0px);
         }}
 
-        /* EXPANDOVACIA SEKCIA */
         .expandable-section {{
             background: rgba(0, 0, 0, 0.9);
             border: 2px solid #d4af37;
@@ -390,7 +388,6 @@ def nacti_vsetky_media():
 
 
 def zobraz_kalendar_obsadenosti(db_data, rok, mesiac):
-    """Vykreslí mesiac, kde obsadené (schválené) dni sú označené X."""
     obsadene = set()
 
     for event in db_data:
@@ -578,7 +575,8 @@ def send_email(to_email, subject, plain_body, html_body=None):
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
-        server.sendmail(SENDER_EMAIL, to_email, msg.as_string())
+        text = msg.as_string()
+        server.sendmail(SENDER_EMAIL, to_email, text)
         server.quit()
         return True
     except Exception as e:
@@ -612,28 +610,22 @@ E-mail: parobciovcanske@gmail.com
 """
 
     body_html = f"""
-    <html>
-      <body style="font-family: Arial, sans-serif;">
-        <p>Dobrý deň, <b>{meno_klienta}</b>,</p>
-        <p>ďakujeme za Váš záujem o vystúpenie našej hudobnej skupiny Ovčanske Parobci.</p>
-
-        <p><b>Rekapitulácia Vášho dopytu:</b></p>
-        <ul>
-          <li>Dátum akcie: {datum_akcie}</li>
-          <li>Čas začiatku: {cas_akcie}</li>
-          <li>Typ vystúpenia: {typ_vystupenia}</li>
-          <li>Vypočítaná cena: {celkova_cena}</li>
-          <li>Miesto konania a detaily: {detaily_miesta}</li>
-        </ul>
-
-        <p>Ak súhlasíte s cenou, potvrďte ju kliknutím:</p>
-        <p>
-          <a href="{confirm_url}" style="display:inline-block;padding:12px 20px;background:#d4af37;color:#000;text-decoration:none;border-radius:8px;font-weight:bold;">
-            ✅ Potvrdiť cenu
-          </a>
-        </p>
-      </body>
-    </html>
+    <html><body style="font-family:Arial,sans-serif;line-height:1.6;">
+      <p>Dobrý deň, <b>{meno_klienta}</b>,</p>
+      <p>ďakujeme za Váš záujem o vystúpenie našej hudobnej skupiny Ovčanske Parobci.</p>
+      <ul>
+        <li><b>Dátum akcie:</b> {datum_akcie}</li>
+        <li><b>Čas začiatku:</b> {cas_akcie}</li>
+        <li><b>Typ vystúpenia:</b> {typ_vystupenia}</li>
+        <li><b>Vypočítaná cena:</b> {celkova_cena}</li>
+        <li><b>Miesto konania a detaily:</b> {detaily_miesta}</li>
+      </ul>
+      <p>
+        <a href="{confirm_url}" style="display:inline-block;padding:12px 20px;background:#d4af37;color:#000;text-decoration:none;border-radius:8px;font-weight:bold;">
+          ✅ Potvrdiť cenu
+        </a>
+      </p>
+    </body></html>
     """
     return send_email(to_email, subject, body_plain, body_html)
 
@@ -688,8 +680,8 @@ def process_confirmation_from_query():
 
         zaznam = res.data[0]
 
-        if zaznam.get("stav") == "potvrdene_klientom":
-            st.success("✅ Tento dopyt už bol potvrdený.")
+        if zaznam.get("klient_potvrdil_cenu") is True:
+            st.success("✅ Tento dopyt už bol potvrdený klientom.")
             return
 
         token_expires_at = zaznam.get("token_expires_at")
@@ -701,8 +693,9 @@ def process_confirmation_from_query():
             except Exception:
                 pass
 
+        # DÔLEŽITÉ: stav NEPREPÍNAME, nech ostane v "Nové dopyty"
         supabase.table("kalendar").update({
-            "stav": "potvrdene_klientom",
+            "klient_potvrdil_cenu": True,
             "confirmed_at": datetime.now().isoformat()
         }).eq("id", zaznam["id"]).execute()
 
@@ -798,7 +791,8 @@ if menu == "🎸 Rezervácia":
         detaily_vypoctu += f" | Ozvučenie: {CENA_APARATURA:.2f} €"
     detaily_vypoctu += f" | Doprava {km*2} km celkovo: {cena_doprava:.2f} €"
 
-    st.info("💡 Vypočítaná cena príde na e-mail na potvrdenie.")
+    # Kalkuláciu na webe nezobrazujeme
+    st.info("💡 Vypočítaná cena vám príde na e-mail na potvrdenie.")
 
     with st.expander("📅 Zobraziť kalendár obsadenosti"):
         dnes = datetime.now().date()
@@ -854,7 +848,8 @@ if menu == "🎸 Rezervácia":
                     "stav": "cakajuce",
                     "confirmation_token": token,
                     "token_expires_at": token_exp,
-                    "confirmed_at": None
+                    "confirmed_at": None,
+                    "klient_potvrdil_cenu": False
                 }
 
                 if supabase:
@@ -864,23 +859,13 @@ if menu == "🎸 Rezervácia":
                             st.session_state['db_data'] = nacti_data()
 
                             posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nTyp: {typ_akcie}\nMiesto: {mesto_detaily}\nCena: {vypocitana_cena_txt}")
-
-                            ok_email = posli_email_zakaznikovi_s_potvrdenim(
-                                email,
-                                meno,
-                                str(datum),
-                                cas.strftime('%H:%M'),
-                                typ_akcie,
-                                vypocitana_cena_txt,
-                                mesto_detaily,
-                                confirm_url
+                            posli_email_zakaznikovi_s_potvrdenim(
+                                email, meno, str(datum), cas.strftime('%H:%M'),
+                                typ_akcie, vypocitana_cena_txt, mesto_detaily, confirm_url
                             )
 
                             st.balloons()
-                            if ok_email:
-                                st.success("✅ Odoslané! Cena bola zaslaná na e-mail na potvrdenie.")
-                            else:
-                                st.warning("⚠️ Dopyt bol uložený, ale e-mail s potvrdením sa nepodarilo odoslať.")
+                            st.success("✅ Odoslané! Cena bola zaslaná na e-mail na potvrdenie.")
                         else:
                             st.error("Chyba: Dáta sa nepodarilo zapísať do databázy.")
                     except Exception as e:
@@ -1054,18 +1039,27 @@ else:
                     st.write(f"📞 **Kontakt:** {a.get('tel', '---')} | 📧 {a.get('email', '---')}")
                     st.write(f"🕒 **Čas:** {a.get('cas', '---')}")
                     st.write(f"💰 **Cena:** {kalkulacia}")
+
+                    if a.get("klient_potvrdil_cenu", False):
+                        st.success("✅ Klient POTVRDIL cenu")
+                    else:
+                        st.warning("⌛ Klient ešte NEPOTVRDIL cenu")
+
                     st.markdown(f"""<div class="admin-detail-box"><b>Miesto a detaily:</b><br>{info_mesto}</div>""", unsafe_allow_html=True)
 
                     c1, c2, c3 = st.columns(3)
                     if c1.button("✅ Schváliť", key=f"ok{i}"):
-                        if supabase:
-                            try:
-                                supabase.table("kalendar").update({"stav": "schvalene"}).eq("id", a['id']).execute()
-                                st.session_state['db_data'] = nacti_data()
-                                st.success("Dopyt schválený!")
-                                st.rerun()
-                            except Exception as e:
-                                st.error(f"Nepodarilo sa schváliť v Supabase: {e}")
+                        if not a.get("klient_potvrdil_cenu", False):
+                            st.error("Klient ešte nepotvrdil cenu. Najprv musí potvrdiť cez e-mail.")
+                        else:
+                            if supabase:
+                                try:
+                                    supabase.table("kalendar").update({"stav": "schvalene"}).eq("id", a['id']).execute()
+                                    st.session_state['db_data'] = nacti_data()
+                                    st.success("Dopyt schválený!")
+                                    st.rerun()
+                                except Exception as e:
+                                    st.error(f"Nepodarilo sa schváliť v Supabase: {e}")
 
                     if c2.button("🗑️ Zmazať", key=f"no{i}"):
                         if supabase:
@@ -1246,7 +1240,8 @@ else:
                             "email": em_adresa,
                             "vypocitana_cena": dohodnuta_cena,
                             "detaily": det,
-                            "stav": "schvalene"
+                            "stav": "schvalene",
+                            "klient_potvrdil_cenu": True
                         }
                         if supabase:
                             try:
