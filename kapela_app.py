@@ -5,6 +5,7 @@ from email.mime.text import MIMEText
 from datetime import datetime, timedelta
 from pushbullet import Pushbullet
 from supabase import create_client
+import json
 import calendar
 import secrets
 import urllib.parse
@@ -18,11 +19,8 @@ try:
     SENDER_PASSWORD = st.secrets["sender_password"]
     SUPABASE_URL = st.secrets["SUPABASE_URL"]
     SUPABASE_KEY = st.secrets["SUPABASE_KEY"]
-
-    # NOVÉ:
-    APP_BASE_URL = st.secrets["APP_BASE_URL"]  # napr. https://moja-app.streamlit.app
-    ADMIN_NOTIFY_EMAIL = st.secrets["ADMIN_NOTIFY_EMAIL"]  # admin email na notifikácie
-
+    APP_BASE_URL = st.secrets["APP_BASE_URL"]
+    ADMIN_NOTIFY_EMAIL = st.secrets["ADMIN_NOTIFY_EMAIL"]
 except KeyError as e:
     st.error(f"❌ KRITICKÁ CHYBA: Chýba secret '{e.args[0]}' v Streamlit Secrets! Kontaktujte správcu.")
     st.stop()
@@ -106,6 +104,7 @@ def apply_style():
             box-shadow: 0 0 15px rgba(212, 175, 55, 0.20);
         }}
 
+        /* FOOTER S TLAČIDLAMI */
         .footer-buttons {{
             display: flex;
             justify-content: space-around;
@@ -143,6 +142,7 @@ def apply_style():
             transform: translateY(0px);
         }}
 
+        /* EXPANDOVACIA SEKCIA */
         .expandable-section {{
             background: rgba(0, 0, 0, 0.9);
             border: 2px solid #d4af37;
@@ -390,7 +390,9 @@ def nacti_vsetky_media():
 
 
 def zobraz_kalendar_obsadenosti(db_data, rok, mesiac):
+    """Vykreslí mesiac, kde obsadené (schválené) dni sú označené X."""
     obsadene = set()
+
     for event in db_data:
         if event.get("stav") == "schvalene":
             try:
@@ -438,406 +440,107 @@ def hvezdicky_html(pocet):
     return "⭐" * pocet + "☆" * (5 - pocet)
 
 
-def posli_upozornenie(text):
-    try:
-        if PB_API_KEY:
-            pb = Pushbullet(PB_API_KEY)
-            pb.push_note("🎸 NOVÝ DOPYT", text)
-            return True
-    except Exception as e:
-        st.error(f"⚠️ Pushbullet neodoslal správu! Chyba: {e}")
-    return False
+def zobraz_footer_tlacidla(is_recenzie_page=False):
+    col1, col2, col3 = st.columns(3)
 
+    with col1:
+        if st.button("❓ FAQ", key=f"btn_faq_{st.session_state.get('page_id', 'main')}", use_container_width=True):
+            st.session_state[f"expand_faq_{st.session_state.get('page_id', 'main')}"] = not st.session_state.get(f"expand_faq_{st.session_state.get('page_id', 'main')}", False)
+            st.rerun()
 
-def send_email(to_email, subject, plain_body, html_body=None):
-    if not to_email or "@" not in to_email or not SENDER_PASSWORD:
-        return False
-    try:
-        msg = MIMEMultipart("alternative")
-        msg['From'] = SENDER_EMAIL
-        msg['To'] = to_email
-        msg['Subject'] = subject
+    with col2:
+        if st.button("⭐ RECENZIE", key=f"btn_rec_{st.session_state.get('page_id', 'main')}", use_container_width=True):
+            st.session_state[f"expand_rec_{st.session_state.get('page_id', 'main')}"] = not st.session_state.get(f"expand_rec_{st.session_state.get('page_id', 'main')}", False)
+            st.rerun()
 
-        msg.attach(MIMEText(plain_body, 'plain', 'utf-8'))
-        if html_body:
-            msg.attach(MIMEText(html_body, 'html', 'utf-8'))
+    with col3:
+        if st.button("📞 KONTAKT", key=f"btn_kon_{st.session_state.get('page_id', 'main')}", use_container_width=True):
+            st.session_state[f"expand_kon_{st.session_state.get('page_id', 'main')}"] = not st.session_state.get(f"expand_kon_{st.session_state.get('page_id', 'main')}", False)
+            st.rerun()
 
-        server = smtplib.SMTP('smtp.gmail.com', 587)
-        server.starttls()
-        server.login(SENDER_EMAIL, SENDER_PASSWORD)
-        server.sendmail(SENDER_EMAIL, to_email, msg.as_string())
-        server.quit()
-        return True
-    except Exception as e:
-        st.warning(f"Nepodarilo sa odoslať e-mail na {to_email}: {e}")
-        return False
+    if st.session_state.get(f"expand_faq_{st.session_state.get('page_id', 'main')}", False):
+        st.markdown('<div class="expandable-section">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">❓ Často kladené otázky</div>', unsafe_allow_html=True)
 
+        faq_otazky = [
+            {"otazka": "Ako dlho hráte minimálne?", "odpoved": "Minimálna doba hrania je 1 hodina. Nižšie doby sa neposkytujú."},
+            {"otazka": "Aká je minimálna doba rezervácie?", "odpoved": "Rezervácia musí byť uskutočnená minimálne 1 mesiac vopred. To nám umožňuje správne si naplánovať našu kapelu."},
+            {"otazka": "Ako sa počíta cena?", "odpoved": f"Rodinná oslava: {CENA_OSLAVA_HODINA} € za hodinu | Svadobný sprievod: {CENA_SPRIEVOD_ZAKLAD} € za 2 hodiny | Hranie pomedzi stoly: {CENA_STOLY_HODINA} € za hodinu + doprava {CENA_ZA_KM} € za km"}
+        ]
 
-def posli_email_zakaznikovi_s_potvrdenim(to_email, meno_klienta, datum_akcie, cas_akcie, typ_vystupenia, celkova_cena, detaily_miesta, confirm_url):
-    subject = f"Potvrdenie ceny dopytu - Ovčanske Parobci ({datum_akcie})"
+        for faq in faq_otazky:
+            st.markdown(f"""
+            <div class="faq-item">
+                <div class="faq-otazka">❓ {faq['otazka']}</div>
+                <div class="faq-odpoved">{faq['odpoved']}</div>
+            </div>
+            """, unsafe_allow_html=True)
 
-    plain_body = f"""Dobrý deň, {meno_klienta},
+        st.markdown('</div>', unsafe_allow_html=True)
 
-ďakujeme za Váš záujem o vystúpenie našej hudobnej skupiny Ovčanske Parobci.
+    if st.session_state.get(f"expand_rec_{st.session_state.get('page_id', 'main')}", False):
+        st.markdown('<div class="expandable-section">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">⭐ Zanechaj svoj ohlas</div>', unsafe_allow_html=True)
 
-Rekapitulácia:
-Dátum akcie: {datum_akcie}
-Čas začiatku: {cas_akcie}
-Typ vystúpenia: {typ_vystupenia}
-Vypočítaná cena: {celkova_cena}
-Miesto a detaily: {detaily_miesta}
+        with st.form(f"nova_recenzia_{st.session_state.get('page_id', 'main')}"):
+            typ_mena = st.radio("Ako sa chceš reprezentovať?", ["❌ Anonymne", "✅ Pod mojim menom"], horizontal=True, key=f"radio_rec_{st.session_state.get('page_id', 'main')}")
 
-Ak súhlasíte s cenou, potvrďte ju kliknutím na tento odkaz:
-{confirm_url}
-
-Po potvrdení Vám príde potvrdzujúci e-mail.
-
-S pozdravom,
-Ľudová hudba Ovčanske Parobci
-Tel. číslo: 0944 757 122
-E-mail: parobciovcanske@gmail.com
-"""
-
-    html_body = f"""
-    <html>
-      <body style="font-family: Arial, sans-serif; line-height:1.6;">
-        <p>Dobrý deň, <b>{meno_klienta}</b>,</p>
-        <p>ďakujeme za Váš záujem o vystúpenie našej hudobnej skupiny <b>Ovčanske Parobci</b>.</p>
-
-        <h3>Rekapitulácia dopytu</h3>
-        <ul>
-          <li><b>Dátum akcie:</b> {datum_akcie}</li>
-          <li><b>Čas začiatku:</b> {cas_akcie}</li>
-          <li><b>Typ vystúpenia:</b> {typ_vystupenia}</li>
-          <li><b>Vypočítaná cena:</b> {celkova_cena}</li>
-          <li><b>Miesto a detaily:</b> {detaily_miesta}</li>
-        </ul>
-
-        <p>Ak súhlasíte s cenou, kliknite na tlačidlo:</p>
-        <p>
-          <a href="{confirm_url}" style="display:inline-block;padding:12px 20px;background:#d4af37;color:#000;text-decoration:none;border-radius:8px;font-weight:bold;">
-            ✅ Potvrdiť cenu
-          </a>
-        </p>
-
-        <p>Po potvrdení Vám príde potvrdzujúci e-mail.</p>
-
-        <p>S pozdravom,<br>
-        Ľudová hudba Ovčanske Parobci<br>
-        Tel. číslo: 0944 757 122<br>
-        E-mail: parobciovcanske@gmail.com</p>
-      </body>
-    </html>
-    """
-    return send_email(to_email, subject, plain_body, html_body)
-
-
-def posli_email_o_potvrdeni_zakaznikovi(to_email, meno, datum_akcie, cena):
-    subject = f"Potvrdenie prijaté - Ovčanske Parobci ({datum_akcie})"
-    plain = f"""Dobrý deň, {meno},
-
-ďakujeme, Vaše potvrdenie ceny sme úspešne prijali.
-
-Dátum akcie: {datum_akcie}
-Potvrdená cena: {cena}
-
-Čoskoro Vás budeme kontaktovať telefonicky.
-
-S pozdravom,
-Ovčanske Parobci
-"""
-    html = f"""
-    <html><body>
-    <p>Dobrý deň, <b>{meno}</b>,</p>
-    <p>ďakujeme, Vaše potvrdenie ceny sme úspešne prijali.</p>
-    <ul>
-      <li><b>Dátum akcie:</b> {datum_akcie}</li>
-      <li><b>Potvrdená cena:</b> {cena}</li>
-    </ul>
-    <p>Čoskoro Vás budeme kontaktovať telefonicky.</p>
-    <p>S pozdravom,<br>Ovčanske Parobci</p>
-    </body></html>
-    """
-    return send_email(to_email, subject, plain, html)
-
-
-def posli_email_adminovi_o_potvrdeni(meno, tel, email, datum_akcie, cas_akcie, cena, detaily):
-    subject = f"✅ Klient potvrdil cenu - {datum_akcie}"
-    plain = f"""Klient potvrdil cenu dopytu.
-
-Meno: {meno}
-Tel: {tel}
-Email: {email}
-Dátum: {datum_akcie}
-Čas: {cas_akcie}
-Cena: {cena}
-Detaily: {detaily}
-"""
-    html = f"""
-    <html><body>
-    <h3>✅ Klient potvrdil cenu dopytu</h3>
-    <ul>
-      <li><b>Meno:</b> {meno}</li>
-      <li><b>Tel:</b> {tel}</li>
-      <li><b>Email:</b> {email}</li>
-      <li><b>Dátum:</b> {datum_akcie}</li>
-      <li><b>Čas:</b> {cas_akcie}</li>
-      <li><b>Cena:</b> {cena}</li>
-      <li><b>Detaily:</b> {detaily}</li>
-    </ul>
-    </body></html>
-    """
-    return send_email(ADMIN_NOTIFY_EMAIL, subject, plain, html)
-
-
-def process_confirmation_from_query():
-    # Zachytí klik z emailu: ?confirm_token=XYZ
-    token = st.query_params.get("confirm_token", None)
-    if not token:
-        return
-
-    if isinstance(token, list):
-        token = token[0]
-
-    if not supabase:
-        st.error("Nepodarilo sa pripojiť k databáze.")
-        return
-
-    try:
-        res = supabase.table("kalendar").select("*").eq("confirmation_token", token).limit(1).execute()
-        if not res.data:
-            st.error("❌ Potvrdzovací odkaz je neplatný alebo už bol použitý.")
-            return
-
-        zaznam = res.data[0]
-
-        # Ak už potvrdené, len info
-        if zaznam.get("stav") == "potvrdene_klientom":
-            st.success("✅ Tento dopyt už bol potvrdený.")
-            return
-
-        # Kontrola expirácie tokenu (ak je vyplnený)
-        token_expires_at = zaznam.get("token_expires_at")
-        if token_expires_at:
-            try:
-                exp_dt = datetime.fromisoformat(token_expires_at)
-                if datetime.now() > exp_dt:
-                    st.error("❌ Potvrdzovací odkaz vypršal.")
-                    return
-            except Exception:
-                pass
-
-        update_payload = {
-            "stav": "potvrdene_klientom",
-            "confirmed_at": datetime.now().isoformat()
-        }
-
-        supabase.table("kalendar").update(update_payload).eq("id", zaznam["id"]).execute()
-
-        meno = zaznam.get("meno", "Klient")
-        tel = zaznam.get("tel", "")
-        email = zaznam.get("email", "")
-        datum_akcie = zaznam.get("datum", "")
-        cas_akcie = zaznam.get("cas", "")
-        cena = zaznam.get("vypocitana_cena", "Neuvedená")
-        detaily = zaznam.get("detaily", "")
-
-        # Pushbullet adminovi
-        posli_upozornenie(
-            f"✅ KLIENT POTVRDIL CENU\n"
-            f"Dátum: {datum_akcie} {cas_akcie}\n"
-            f"Meno: {meno}\n"
-            f"Tel: {tel}\n"
-            f"Email: {email}\n"
-            f"Cena: {cena}\n"
-            f"Detaily: {detaily}"
-        )
-
-        # Email adminovi + klientovi
-        posli_email_adminovi_o_potvrdeni(meno, tel, email, datum_akcie, cas_akcie, cena, detaily)
-        if email:
-            posli_email_o_potvrdeni_zakaznikovi(email, meno, datum_akcie, cena)
-
-        st.success("✅ Ďakujeme, cenu ste úspešne potvrdili. Budeme Vás kontaktovať.")
-
-        # Voliteľne vyčisti query param (aby po refreshi znova nepotvrdzovalo)
-        st.query_params.clear()
-
-    except Exception as e:
-        st.error(f"Chyba pri potvrdzovaní: {e}")
-
-
-st.set_page_config(page_title="Ovčanske Parobci", page_icon="🎻", layout="centered", initial_sidebar_state="collapsed")
-apply_style()
-
-# DÔLEŽITÉ: spracovanie potvrdzovacieho linku hneď po načítaní appky
-process_confirmation_from_query()
-
-menu = st.radio(
-    "NAVIGÁCIA",
-    ["🎸 Rezervácia", "💰 Cenník", "ℹ️ O nás", "📸 Galéria", "⭐ Recenzie", "🔐 Administrácia"],
-    horizontal=True,
-    label_visibility="collapsed"
-)
-
-st.markdown("<br>", unsafe_allow_html=True)
-
-if 'db_data' not in st.session_state:
-    st.session_state['db_data'] = nacti_data()
-
-# --- 1. REZERVÁCIA ---
-if menu == "🎸 Rezervácia":
-    st.session_state['page_id'] = 'rezaba'
-    st.title("🎻 Rezervácia vystúpenia")
-    st.markdown('<div class="info-box">🪗 Akordeón | 🎻 Husle | 🥁 Bubon | 🎷 Saxofón</div>', unsafe_allow_html=True)
-
-    st.markdown("<h4 style='text-align: center; margin-bottom: 5px; margin-top: 20px;'>Nastavenie dopytu</h4>", unsafe_allow_html=True)
-
-    typ_akcie = st.selectbox(
-        "Vyberte typ vystúpenia:",
-        ["🎂 Rodinná oslava / Jubileum", "👰 Svadobný sprievod a odobierka", "🍻 Hranie pomedzi stoly / Posedenie"]
-    )
-
-    col_vstupy, col_km = st.columns(2)
-    cena_hudba = 0
-    popis_hudby = ""
-
-    with col_vstupy:
-        if typ_akcie == "🎂 Rodinná oslava / Jubileum":
-            hodiny = st.slider("Dĺžka hrania (v hodinách)", min_value=1, max_value=12, value=5, key="hours_oslava")
-            cena_hudba = hodiny * CENA_OSLAVA_HODINA
-            popis_hudby = f"Rodinná oslava ({hodiny} hod.)"
-
-        elif typ_akcie == "👰 Svadobný sprievod a odobierka":
-            st.info("Základná cena zahŕňa sprievod do 2 hodín (akusticky).")
-            polhodiny_navyse = st.slider("Čas navyše (počet začatých polhodín)", min_value=0, max_value=10, value=0, key="extra_sprievod")
-            cena_hudba = CENA_SPRIEVOD_ZAKLAD + (polhodiny_navyse * CENA_SPRIEVOD_POLHODINA)
-            if polhodiny_navyse > 0:
-                popis_hudby = f"Svadobný sprievod (2 hod. + {polhodiny_navyse}x polhodina navyše)"
+            meno = ""
+            if typ_mena == "✅ Pod mojim menom":
+                meno = st.text_input("Tvoje meno", placeholder="Napíš svoje meno...", key=f"input_meno_{st.session_state.get('page_id', 'main')}")
+                if not meno:
+                    meno = "Anonymný"
             else:
-                popis_hudby = "Svadobný sprievod (základ do 2 hod.)"
+                meno = "Anonymný"
 
-        elif typ_akcie == "🍻 Hranie pomedzi stoly / Posedenie":
-            hodiny = st.slider("Dĺžka hrania (v hodinách)", min_value=1, max_value=12, value=3, key="hours_stoly")
-            cena_hudba = hodiny * CENA_STOLY_HODINA
-            popis_hudby = f"Hranie pomedzi stoly ({hodiny} hod.)"
+            hvezdicky = st.slider("Ako hodnotíš našu kapelu? (1-5 hviezd)", min_value=1, max_value=5, value=5, key=f"slider_rec_{st.session_state.get('page_id', 'main')}")
+            text = st.text_area("Tvoj komentár", placeholder="Napíš nám tvoj názor na naše vystúpenie...", height=120, key=f"textarea_rec_{st.session_state.get('page_id', 'main')}")
 
-    with col_km:
-        km = st.slider("Vzdialenosť z obce Ovčie (v km jednosmerne)", min_value=0, max_value=300, value=0, step=5, key="calc_km")
-
-    potrebuje_aparaturu = st.checkbox(
-        f"Zabezpečiť zvukovú aparatúru (aktívne reprobedne, mixpult, mikrofóny) (+{CENA_APARATURA} €)",
-        value=False
-    )
-
-    cena_doprava = km * 2 * CENA_ZA_KM
-    prplatok_aparatura = CENA_APARATURA if potrebuje_aparaturu else 0
-    celkova_cena = cena_hudba + cena_doprava + prplatok_aparatura
-
-    detaily_vypoctu = f"{popis_hudby}: {cena_hudba:.2f} €"
-    if potrebuje_aparaturu:
-        detaily_vypoctu += f" | Ozvučenie: {CENA_APARATURA:.2f} €"
-    detaily_vypoctu += f" | Doprava {km*2} km celkovo: {cena_doprava:.2f} €"
-
-    # ÚMYSELNE SKRYTÉ:
-    st.info("💡 Presná vypočítaná cena Vám príde e-mailom na potvrdenie.")
-
-    with st.expander("📅 Zobraziť kalendár obsadenosti"):
-        dnes = datetime.now().date()
-        col_m1, col_m2 = st.columns(2)
-
-        with col_m1:
-            vybrany_rok = st.number_input("Rok", min_value=dnes.year, max_value=dnes.year + 3, value=dnes.year, step=1)
-
-        with col_m2:
-            vybrany_mesiac = st.selectbox("Mesiac", options=list(range(1, 13)), index=dnes.month - 1, format_func=lambda m: f"{m:02d}")
-
-        kal_html = zobraz_kalendar_obsadenosti(st.session_state['db_data'], int(vybrany_rok), int(vybrany_mesiac))
-        st.markdown(kal_html, unsafe_allow_html=True)
-
-    with st.form("main_booking"):
-        st.subheader("📩 Rezervačný dopyt")
-
-        col1, col2 = st.columns(2)
-        with col1:
-            datum = st.date_input("Dátum akcie", min_value=datetime.now())
-        with col2:
-            cas = st.time_input("Čas začiatku")
-
-        meno = st.text_input("Meno a priezvisko")
-        tel = st.text_input("Telefónne číslo")
-        email = st.text_input("E-mail")
-        mesto_detaily = st.text_area("Presná adresa konania (mesto/sála) a iné detaily")
-
-        if st.form_submit_button("ODOSLAŤ REZERVAČNÝ DOPYT"):
-            db = nacti_data()
-
-            if any(a['datum'] == str(datum) for a in db if a.get('stav') == 'schvalene'):
-                st.error("❌ Tento termín je už obsadený. Prosím, vyberte si iný dátum.")
-            elif not meno or not tel or not email:
-                st.warning("⚠️ Vyplňte, prosím, meno, telefón a e-mail.")
-            else:
-                txt_aparatury = "S APARATÚROU" if potrebuje_aparaturu else "BEZ aparatúry"
-                vypocitana_cena_txt = f"{celkova_cena:.2f} € ({popis_hudby}, {txt_aparatury}, {km} km jednosmerne)"
-
-                token = secrets.token_urlsafe(32)
-                exp = datetime.now() + timedelta(days=3)
-
-                # Streamlit query link:
-                confirm_url = f"{APP_BASE_URL}?confirm_token={urllib.parse.quote(token)}"
-
-                nova = {
-                    "id": str(datetime.now().timestamp()),
-                    "datum": str(datum),
-                    "cas": f"{cas.strftime('%H:%M')}",
-                    "meno": meno,
-                    "tel": tel,
-                    "email": email,
-                    "detaily": f"[{typ_akcie}] [Ozvučenie: {txt_aparatury}] {mesto_detaily}",
-                    "vypocitana_cena": vypocitana_cena_txt,
-                    "stav": "cakajuce",
-                    "confirmation_token": token,
-                    "token_expires_at": exp.isoformat(),
-                    "confirmed_at": None
-                }
-
-                if supabase:
-                    try:
-                        res = supabase.table("kalendar").insert(nova).execute()
-                        if res.data:
-                            st.session_state['db_data'] = nacti_data()
-
-                            # Notifikácia o novom dopyte (bez potvrdenia ešte)
-                            posli_upozornenie(
-                                f"Nový dopyt (čaká na potvrdenie ceny): {datum}\n"
-                                f"{meno} ({tel})\nTyp: {typ_akcie}\nMiesto: {mesto_detaily}\nCena: {vypocitana_cena_txt}"
-                            )
-
-                            ok_mail = posli_email_zakaznikovi_s_potvrdenim(
-                                to_email=email,
-                                meno_klienta=meno,
-                                datum_akcie=str(datum),
-                                cas_akcie=cas.strftime('%H:%M'),
-                                typ_vystupenia=typ_akcie,
-                                celkova_cena=vypocitana_cena_txt,
-                                detaily_miesta=mesto_detaily,
-                                confirm_url=confirm_url
-                            )
-
-                            st.balloons()
-                            if ok_mail:
-                                st.success("✅ Dopyt bol odoslaný. Na e-mail sme Vám poslali cenu na potvrdenie.")
-                            else:
-                                st.warning("⚠️ Dopyt sa uložil, ale e-mail s potvrdením sa nepodarilo odoslať.")
-                        else:
-                            st.error("Chyba: Dáta sa nepodarilo zapísať do databázy.")
-                    except Exception as e:
-                        st.error(f"Chyba zápisu do Supabase: {e}")
+            if st.form_submit_button("🚀 ODOSLAŤ RECENZIU", key=f"submit_rec_{st.session_state.get('page_id', 'main')}"):
+                if not text or len(text) < 5:
+                    st.warning("⚠️ Napíš prosím aspoň pár slov do komentára!")
                 else:
-                    st.error("Chyba: Databáza Supabase nie je pripojená!")
+                    nova_recenzia = {
+                        "id": str(datetime.now().timestamp()),
+                        "meno": meno,
+                        "hvezdicky": hvezdicky,
+                        "text": text,
+                        "created_at": datetime.now().isoformat()
+                    }
 
-    # Ak chceš, sem si vlož svoju pôvodnú funkciu footeru:
-    # zobraz_footer_tlacidla()
+                    if supabase:
+                        try:
+                            res = supabase.table("recenzie").insert(nova_recenzia).execute()
+                            if res.data:
+                                st.success("✅ Ďakujeme za tvoj ohlas! 🎉")
+                                st.balloons()
+                                st.rerun()
+                            else:
+                                st.error("Chyba: Recenzija sa nepodarila uložiť.")
+                        except Exception as e:
+                            st.error(f"Chyba: {e}")
+                    else:
+                        st.error("Chyba: Databáza Supabase nie je pripojená!")
 
-# Ostatné menu časti (Cenník, O nás, Galéria, Recenzie, Admin) môžeš nechať z pôvodného kódu.
-# V administrácii odporúčam vidieť aj stav "potvrdene_klientom".
+        st.markdown('</div>', unsafe_allow_html=True)
+
+    if st.session_state.get(f"expand_kon_{st.session_state.get('page_id', 'main')}", False):
+        st.markdown('<div class="expandable-section">', unsafe_allow_html=True)
+        st.markdown('<div class="section-title">📞 Kontaktujte nás</div>', unsafe_allow_html=True)
+
+        st.markdown("""
+            <div class="kontakt-info">
+                <div class="kontakt-label">☎️ Telefón</div>
+                <div class="kontakt-value">0944 757 122</div>
+            </div>
+            <div class="kontakt-info">
+                <div class="kontakt-label">📧 Email</div>
+                <div class="kontakt-value">parobciovcanske@gmail.com</div>
+            </div>
+            <div class="kontakt-info">
+                <div class="kontakt-label">📍 Mesto</div>
+                <div class="kontakt-value">Obec Ovčie, Slovensko</div>
+            </div>
+            <div style="text-align: center; margin-top: 15px;">
+                <a href="https://www.instagram*
+
