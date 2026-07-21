@@ -1,6 +1,7 @@
 # app.py - CELÝ KÓD
 
 import streamlit as st
+import streamlit.components.v1 as components
 import smtplib
 from email.mime.multipart import MIMEMultipart
 from email.mime.text import MIMEText
@@ -51,21 +52,27 @@ supabase = get_supabase_client()
 
 
 def inject_live_chat():
-    st.markdown("""
-    <!--Start of Tawk.to Script-->
-    <script type="text/javascript">
-    var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
-    (function(){
-      var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
-      s1.async=true;
-      s1.src='https://embed.tawk.to/6a5f209b4693711d483c3318/1ju1peoj1';
-      s1.charset='UTF-8';
-      s1.setAttribute('crossorigin','*');
-      s0.parentNode.insertBefore(s1,s0);
-    })();
-    </script>
-    <!--End of Tawk.to Script-->
-    """, unsafe_allow_html=True)
+    components.html("""
+    <!doctype html>
+    <html>
+      <head><meta charset="utf-8" /></head>
+      <body>
+        <!--Start of Tawk.to Script-->
+        <script type="text/javascript">
+        var Tawk_API=Tawk_API||{}, Tawk_LoadStart=new Date();
+        (function(){
+          var s1=document.createElement("script"),s0=document.getElementsByTagName("script")[0];
+          s1.async=true;
+          s1.src='https://embed.tawk.to/6a5f209b4693711d483c3318/1ju1peoj1';
+          s1.charset='UTF-8';
+          s1.setAttribute('crossorigin','*');
+          s0.parentNode.insertBefore(s1,s0);
+        })();
+        </script>
+        <!--End of Tawk.to Script-->
+      </body>
+    </html>
+    """, height=0, width=0)
 
 
 def apply_style():
@@ -174,14 +181,8 @@ def apply_style():
         }}
 
         @keyframes slideDown {{
-            from {{
-                opacity: 0;
-                transform: translateY(-20px);
-            }}
-            to {{
-                opacity: 1;
-                transform: translateY(0);
-            }}
+            from {{ opacity: 0; transform: translateY(-20px); }}
+            to {{ opacity: 1; transform: translateY(0); }}
         }}
 
         .section-title {{
@@ -200,9 +201,7 @@ def apply_style():
             border-bottom: 1px solid rgba(212, 175, 55, 0.3);
         }}
 
-        .faq-item:last-child {{
-            border-bottom: none;
-        }}
+        .faq-item:last-child {{ border-bottom: none; }}
 
         .faq-otazka {{
             font-weight: bold;
@@ -859,7 +858,6 @@ if menu == "🎸 Rezervácia":
         detaily_vypoctu += f" | Ozvučenie: {CENA_APARATURA:.2f} €"
     detaily_vypoctu += f" | Doprava {km*2} km celkovo: {cena_doprava:.2f} €"
 
-    # SKRYTÁ kalkulácia
     st.info("💡 Vypočítaná cena vám príde na e-mail na potvrdenie.")
 
     with st.expander("📅 Zobraziť kalendár obsadenosti"):
@@ -1031,17 +1029,14 @@ elif menu == "ℹ️ O nás":
         unsafe_allow_html=True
     )
 
-    # Mapa
     st.components.v1.iframe(
         "https://www.google.com/maps?q=Ov%C4%8Die,+Slovensko&output=embed",
         height=400,
         scrolling=False
     )
 
-    # Medzera pod mapou
     st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
 
-    # Tlačidlo s väčším spodným odsadením, aby sa neprekrývalo s ďalšou sekciou
     st.markdown(
         """
         <div style="text-align:center; margin-top:10px; margin-bottom:40px;">
