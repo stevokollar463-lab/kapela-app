@@ -1,3 +1,5 @@
+# app.py - CELÝ KÓD
+
 import streamlit as st
 import smtplib
 from email.mime.multipart import MIMEMultipart
@@ -27,8 +29,9 @@ except KeyError as e:
 
 KAPELA_FOTO_URL = "https://i.postimg.cc/T1Pkgjnw/1000027016.jpg"
 
-CENA_OSLAVA_HODINA = 130
-CENA_SPRIEVOD_ZAKLAD = 300
+# UPRAVENÉ CENY:
+CENA_OSLAVA_HODINA = 120
+CENA_SPRIEVOD_ZAKLAD = 250
 CENA_SPRIEVOD_POLHODINA = 50
 CENA_STOLY_HODINA = 120
 CENA_APARATURA = 100
@@ -389,7 +392,6 @@ def nacti_vsetky_media():
 
 def zobraz_kalendar_obsadenosti(db_data, rok, mesiac):
     obsadene = set()
-
     for event in db_data:
         if event.get("stav") == "schvalene":
             try:
@@ -567,7 +569,6 @@ def send_email(to_email, subject, plain_body, html_body=None):
         msg['From'] = SENDER_EMAIL
         msg['To'] = to_email
         msg['Subject'] = subject
-
         msg.attach(MIMEText(plain_body, 'plain', 'utf-8'))
         if html_body:
             msg.attach(MIMEText(html_body, 'html', 'utf-8'))
@@ -575,8 +576,7 @@ def send_email(to_email, subject, plain_body, html_body=None):
         server = smtplib.SMTP('smtp.gmail.com', 587)
         server.starttls()
         server.login(SENDER_EMAIL, SENDER_PASSWORD)
-        text = msg.as_string()
-        server.sendmail(SENDER_EMAIL, to_email, text)
+        server.sendmail(SENDER_EMAIL, to_email, msg.as_string())
         server.quit()
         return True
     except Exception as e:
@@ -585,23 +585,26 @@ def send_email(to_email, subject, plain_body, html_body=None):
 
 
 def posli_email_zakaznikovi_s_potvrdenim(to_email, meno_klienta, datum_akcie, cas_akcie, typ_vystupenia, celkova_cena, detaily_miesta, confirm_url):
-    subject = f"Potvrdenie ceny dopytu - Ovčanske Parobci ({datum_akcie})"
+    subject = f"Status: Prijatie dopytu - Ovčanske Parobci ({datum_akcie})"
 
     body_plain = f"""Dobrý deň, {meno_klienta},
 
 ďakujeme za Váš záujem o vystúpenie našej hudobnej skupiny Ovčanske Parobci.
+Vašu požiadavku sme úspešne prijali a momentálne ju spracovávame.
 
 Rekapitulácia Vášho dopytu:
 ------------------------------------------
 Dátum akcie: {datum_akcie}
 Čas začiatku: {cas_akcie}
 Typ vystúpenia: {typ_vystupenia}
-Vypočítaná cena: {celkova_cena}
+Orientačná cena: {celkova_cena}
 Miesto konania a detaily: {detaily_miesta}
 ------------------------------------------
 
 Ak súhlasíte s cenou, potvrďte ju kliknutím na tento odkaz:
 {confirm_url}
+
+Čoskoro Vás budeme kontaktovať pre telefonické potvrdenie termínu a doladenie detailov.
 
 S pozdravom,
 Ľudová hudba Ovčanske Parobci
@@ -611,20 +614,31 @@ E-mail: parobciovcanske@gmail.com
 
     body_html = f"""
     <html><body style="font-family:Arial,sans-serif;line-height:1.6;">
-      <p>Dobrý deň, <b>{meno_klienta}</b>,</p>
-      <p>ďakujeme za Váš záujem o vystúpenie našej hudobnej skupiny Ovčanske Parobci.</p>
-      <ul>
-        <li><b>Dátum akcie:</b> {datum_akcie}</li>
-        <li><b>Čas začiatku:</b> {cas_akcie}</li>
-        <li><b>Typ vystúpenia:</b> {typ_vystupenia}</li>
-        <li><b>Vypočítaná cena:</b> {celkova_cena}</li>
-        <li><b>Miesto konania a detaily:</b> {detaily_miesta}</li>
-      </ul>
+      <p>Dobrý deň, {meno_klienta},</p>
+      <p>ďakujeme za Váš záujem o vystúpenie našej hudobnej skupiny Ovčanske Parobci.<br>
+      Vašu požiadavku sme úspešne prijali a momentálne ju spracovávame.</p>
+
+      <p><b>Rekapitulácia Vášho dopytu:</b><br>
+      ------------------------------------------<br>
+      Dátum akcie: {datum_akcie}<br>
+      Čas začiatku: {cas_akcie}<br>
+      Typ vystúpenia: {typ_vystupenia}<br>
+      Orientačná cena: {celkova_cena}<br>
+      Miesto konania a detaily: {detaily_miesta}<br>
+      ------------------------------------------</p>
+
       <p>
         <a href="{confirm_url}" style="display:inline-block;padding:12px 20px;background:#d4af37;color:#000;text-decoration:none;border-radius:8px;font-weight:bold;">
           ✅ Potvrdiť cenu
         </a>
       </p>
+
+      <p>Čoskoro Vás budeme kontaktovať pre telefonické potvrdenie termínu a doladenie detailov.</p>
+
+      <p>S pozdravom,<br>
+      Ľudová hudba Ovčanske Parobci<br>
+      Tel. číslo: 0944 757 122<br>
+      E-mail: parobciovcanske@gmail.com</p>
     </body></html>
     """
     return send_email(to_email, subject, body_plain, body_html)
@@ -660,6 +674,42 @@ Detaily: {detaily}
     return send_email(ADMIN_NOTIFY_EMAIL, subject, body)
 
 
+def posli_email_o_zamietnuti(to_email, meno, datum_akcie):
+    subject = f"Oznam o dopyte - Ovčanske Parobci ({datum_akcie})"
+    body = f"""Dobrý deň, {meno},
+
+ďakujeme za Váš záujem o vystúpenie našej hudobnej skupiny Ovčanske Parobci.
+
+Veľmi nás to mrzí, ale Váš dopyt na termín {datum_akcie} musíme z organizačných dôvodov zamietnuť.
+
+Ospravedlňujeme sa za komplikácie a ďakujeme za pochopenie.
+V prípade záujmu nás môžete kontaktovať pre iný termín.
+
+S pozdravom,
+Ľudová hudba Ovčanske Parobci
+Tel. číslo: 0944 757 122
+E-mail: parobciovcanske@gmail.com
+"""
+    return send_email(to_email, subject, body)
+
+
+def posli_email_o_zruseni_akcie(to_email, meno, datum_akcie):
+    subject = f"Zrušenie akcie - Ovčanske Parobci ({datum_akcie})"
+    body = f"""Dobrý deň, {meno},
+
+ospravedlňujeme sa, ale dohodnutú akciu na dátum {datum_akcie} musíme z organizačných dôvodov zrušiť.
+
+Mrzí nás to a ďakujeme za pochopenie.
+V prípade záujmu nás kontaktujte a dohodneme náhradný termín.
+
+S pozdravom,
+Ľudová hudba Ovčanske Parobci
+Tel. číslo: 0944 757 122
+E-mail: parobciovcanske@gmail.com
+"""
+    return send_email(to_email, subject, body)
+
+
 def process_confirmation_from_query():
     token = st.query_params.get("confirm_token", None)
     if not token:
@@ -693,7 +743,6 @@ def process_confirmation_from_query():
             except Exception:
                 pass
 
-        # DÔLEŽITÉ: stav NEPREPÍNAME, nech ostane v "Nové dopyty"
         supabase.table("kalendar").update({
             "klient_potvrdil_cenu": True,
             "confirmed_at": datetime.now().isoformat()
@@ -791,7 +840,7 @@ if menu == "🎸 Rezervácia":
         detaily_vypoctu += f" | Ozvučenie: {CENA_APARATURA:.2f} €"
     detaily_vypoctu += f" | Doprava {km*2} km celkovo: {cena_doprava:.2f} €"
 
-    # Kalkuláciu na webe nezobrazujeme
+    # SKRYTÁ kalkulácia
     st.info("💡 Vypočítaná cena vám príde na e-mail na potvrdenie.")
 
     with st.expander("📅 Zobraziť kalendár obsadenosti"):
@@ -857,13 +906,11 @@ if menu == "🎸 Rezervácia":
                         res = supabase.table("kalendar").insert(nova).execute()
                         if res.data:
                             st.session_state['db_data'] = nacti_data()
-
                             posli_upozornenie(f"Nový dopyt: {datum}\n{meno} ({tel})\nTyp: {typ_akcie}\nMiesto: {mesto_detaily}\nCena: {vypocitana_cena_txt}")
                             posli_email_zakaznikovi_s_potvrdenim(
                                 email, meno, str(datum), cas.strftime('%H:%M'),
                                 typ_akcie, vypocitana_cena_txt, mesto_detaily, confirm_url
                             )
-
                             st.balloons()
                             st.success("✅ Odoslané! Cena bola zaslaná na e-mail na potvrdenie.")
                         else:
@@ -1061,15 +1108,17 @@ else:
                                 except Exception as e:
                                     st.error(f"Nepodarilo sa schváliť v Supabase: {e}")
 
-                    if c2.button("🗑️ Zmazať", key=f"no{i}"):
+                    if c2.button("❌ Zamietnuť", key=f"no{i}"):
                         if supabase:
                             try:
-                                supabase.table("kalendar").delete().eq("id", a['id']).execute()
+                                supabase.table("kalendar").update({"stav": "zamietnute"}).eq("id", a['id']).execute()
+                                if a.get("email"):
+                                    posli_email_o_zamietnuti(a.get("email"), a.get("meno", "zákazník"), a.get("datum", ""))
                                 st.session_state['db_data'] = nacti_data()
-                                st.success("Dopyt vymazaný!")
+                                st.success("Dopyt zamietnutý a e-mail odoslaný.")
                                 st.rerun()
                             except Exception as e:
-                                st.error(f"Nepodarilo sa vymazať zo Supabase: {e}")
+                                st.error(f"Nepodarilo sa zamietnuť dopyt: {e}")
 
                     edit_key = f"edit_active_t1_{a['id']}"
                     if edit_key not in st.session_state:
@@ -1115,15 +1164,17 @@ else:
 
                     c1, c2 = st.columns(2)
 
-                    if c1.button("🗑️ Odstrániť", key=f"del{i}"):
+                    if c1.button("❌ Zrušiť akciu", key=f"del{i}"):
                         if supabase:
                             try:
-                                supabase.table("kalendar").delete().eq("id", a['id']).execute()
+                                supabase.table("kalendar").update({"stav": "zrusene"}).eq("id", a['id']).execute()
+                                if a.get("email"):
+                                    posli_email_o_zruseni_akcie(a.get("email"), a.get("meno", "zákazník"), a.get("datum", ""))
                                 st.session_state['db_data'] = nacti_data()
-                                st.success("Akcia odstránená!")
+                                st.success("Akcia zrušená a e-mail odoslaný.")
                                 st.rerun()
                             except Exception as e:
-                                st.error(f"Nepodarilo sa zmazať zo Supabase: {e}")
+                                st.error(f"Nepodarilo sa zrušiť akciu: {e}")
 
                     edit_key_t2 = f"edit_active_t2_{a['id']}"
                     if edit_key_t2 not in st.session_state:
