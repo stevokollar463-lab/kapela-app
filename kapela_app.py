@@ -493,10 +493,7 @@ def parse_price_request(user_msg: str):
         hodiny = max(1, int(round(hodiny)))
 
     polhodiny_navyse = extract_first_number(
-        [
-            r"(\d+)\s*polhod",
-            r"(\d+)\s*x\s*polhod",
-        ],
+        [r"(\d+)\s*polhod", r"(\d+)\s*x\s*polhod"],
         t,
         int
     )
@@ -593,8 +590,7 @@ def faq_fallback_answer(user_msg: str) -> str:
             f"- Svadobný sprievod: {CENA_SPRIEVOD_ZAKLAD} € (do 2 hod.) + {CENA_SPRIEVOD_POLHODINA} € / každá ďalšia polhodina\n"
             f"- Hranie pomedzi stoly: {CENA_STOLY_HODINA} €/hod.\n"
             f"- Ozvučenie: +{CENA_APARATURA} €\n"
-            f"- Doprava: {CENA_ZA_KM:.2f} €/km (tam aj späť)\n\n"
-            f"Skús napr.: „svadobný sprievod, 2 polhodiny navyše, 40 km, s aparatúrou“"
+            f"- Doprava: {CENA_ZA_KM:.2f} €/km (tam aj späť)\n"
         )
 
     if any(k in t for k in ["kontakt", "telefon", "tel", "email", "instagram"]):
@@ -606,47 +602,55 @@ def faq_fallback_answer(user_msg: str) -> str:
         )
 
     if any(k in t for k in ["rezerv", "termin", "volny", "obsaden"]):
-        return (
-            "📅 Termín si overíš v sekcii Rezervácia → Zobraziť kalendár obsadenosti.\n"
-            "Po odoslaní dopytu ti príde e-mail na potvrdenie ceny."
-        )
+        return "📅 Termín si overíš v sekcii Rezervácia → Zobraziť kalendár obsadenosti."
 
-    return (
-        "Ahoj 👋 Som asistent Ovčanske Parobci.\n"
-        "Viem poradiť s cenou, rezerváciou, kontaktom a dostupnosťou termínov.\n"
-        "Napríklad: „rodinná oslava 5 hodín, 30 km, s aparatúrou“"
-    )
+    return "Rád poradím s cenou, rezerváciou, kontaktom alebo termínom 🙂"
 
 
 def ai_chat_answer(user_msg: str) -> str:
+    # 1) presný výpočet ceny lokálne
     parsed = parse_price_request(user_msg)
     computed = compute_price_from_params(parsed)
     if computed:
         return format_price_breakdown(computed)
 
+    # 2) AI odpovede na bežné otázky
     api_key = st.secrets.get("OPENAI_API_KEY", None)
     if not api_key:
         return faq_fallback_answer(user_msg)
 
     try:
         client = OpenAI(api_key=api_key)
-        system_prompt = (
-            "Si virtuálny asistent hudobnej skupiny Ovčanske Parobci. "
-            "Odpovedaj po slovensky, stručne, vecne, priateľsky. "
-            "Nevymýšľaj si údaje mimo poskytnutého kontextu. "
-            "Ak niečo nevieš, odporuč kontakt: 0944 757 122 alebo parobciovcanske@gmail.com."
-        )
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "Si virtuálny asistent hudobnej skupiny Ovčanske Parobci. "
+                    "Odpovedaj po slovensky prirodzene, stručne a užitočne. "
+                    "Nevymýšľaj si fakty mimo kontextu. "
+                    "Ak si neistý, odporuč kontakt: 0944 757 122 alebo parobciovcanske@gmail.com."
+                )
+            },
+            {"role": "system", "content": build_local_context()},
+        ]
+
+        # posledná história (bez duplikácie aktuálnej otázky)
+        history = st.session_state.get("chat_messages", [])
+        for m in history[-8:]:
+            if m.get("role") in ("user", "assistant"):
+                messages.append({"role": m["role"], "content": m["content"]})
+
         resp = client.chat.completions.create(
             model="gpt-4o-mini",
-            temperature=0.4,
-            messages=[
-                {"role": "system", "content": system_prompt},
-                {"role": "system", "content": build_local_context()},
-                {"role": "user", "content": user_msg},
-            ],
+            temperature=0.7,
+            top_p=0.95,
+            messages=messages
         )
-        txt = (resp.choices[0].message.content or "").strip()
-        return txt if txt else faq_fallback_answer(user_msg)
+
+        answer = (resp.choices[0].message.content or "").strip()
+        return answer if answer else faq_fallback_answer(user_msg)
+
     except Exception:
         return faq_fallback_answer(user_msg)
 
@@ -1574,25 +1578,25 @@ st.subheader("💬 Live chat asistent")
 
 if "chat_messages" not in st.session_state:
     st.session_state.chat_messages = [
-        {"role": "assistant", "content": "Ahoj 👋 Som chatbot Ovčanske Parobci. Napíš mi typ akcie, hodiny a km, a hneď ti prepočítam orientačnú cenu."}
+        {"role": "assistant", "content": "Ahoj 👋 Kľudne sa pýtaj na čokoľvek okolo kapely, cien, termínov alebo rezervácie."}
     ]
 
 for msg in st.session_state.chat_messages:
     with st.chat_message(msg["role"]):
         st.markdown(msg["content"])
 
-user_prompt = st.chat_input("Napíš otázku... (napr. „svadobný sprievod, 2 polhodiny navyše, 40 km, s aparatúrou“)")
+user_prompt = st.chat_input("Napíš otázku...")
 
 if user_prompt:
-    st.session_state.chat_messages.append({"role": "user", "content": user_prompt})
     with st.chat_message("user"):
         st.markdown(user_prompt)
+    st.session_state.chat_messages.append({"role": "user", "content": user_prompt})
 
     answer = ai_chat_answer(user_prompt)
-    st.session_state.chat_messages.append({"role": "assistant", "content": answer})
 
     with st.chat_message("assistant"):
         st.markdown(answer)
+    st.session_state.chat_messages.append({"role": "assistant", "content": answer})
 
 col_chat_a, col_chat_b = st.columns(2)
 with col_chat_a:
