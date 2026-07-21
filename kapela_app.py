@@ -1571,7 +1571,104 @@ else:
                                     st.rerun()
                                 except Exception as e:
                                     st.error(f"Chyba pri vymazávaní: {e}")
+def get_band_knowledge() -> str:
+    return """
+OVČANSKE PAROBCI - INTERNÁ ZNALOSTNÁ BÁZA
 
+IDENTITA:
+- Sme ľudová hudobná skupina Ovčanske Parobci.
+- Pôsobíme v obci Ovčie, Slovensko.
+- Kapela vznikla v roku 2020.
+- Sme 5-členná kapela.
+
+NÁSTROJOVÉ OBSADENIE:
+- 2x akordeón
+- 1x husle
+- 1x bubon
+- 1x saxofón
+
+ČO HRÁME / KDE VYSTUPUJEME:
+- Rodinné oslavy a jubileá
+- Svadobné sprievody a odobierky
+- Hranie pomedzi stoly / posedenia
+- Rodinné a firemné podujatia
+
+CENNÍK:
+- Rodinná oslava / jubileum: 120 € / hodina
+- Svadobný sprievod a odobierka: 250 € základ (do 2 hodín)
+- Každá ďalšia začatá polhodina pri sprievode: +50 €
+- Hranie pomedzi stoly / posedenie: 120 € / hodina
+- Profesionálna aparatúra: +100 € jednorazovo
+- Doprava: 0.50 € / km (počíta sa tam aj späť)
+
+KONTAKT:
+- Telefón: 0944 757 122
+- E-mail: parobciovcanske@gmail.com
+- Instagram: https://www.instagram.com/ovcanske_parobci/
+"""
+
+
+def build_local_context() -> str:
+    dynamic_prices = (
+        "\nAKTUÁLNE CENY Z APLIKÁCIE:\n"
+        f"- Rodinná oslava/jubileum: {CENA_OSLAVA_HODINA} EUR/hod.\n"
+        f"- Svadobný sprievod: {CENA_SPRIEVOD_ZAKLAD} EUR do 2 hodín, potom +{CENA_SPRIEVOD_POLHODINA} EUR za každú začatú polhodinu.\n"
+        f"- Hranie pomedzi stoly: {CENA_STOLY_HODINA} EUR/hod.\n"
+        f"- Ozvučenie: +{CENA_APARATURA} EUR.\n"
+        f"- Doprava: {CENA_ZA_KM:.2f} EUR/km (tam aj späť).\n"
+    )
+    return get_band_knowledge() + dynamic_prices
+
+
+def ai_chat_answer(user_msg: str) -> str:
+    parsed = parse_price_request(user_msg)
+    computed = compute_price_from_params(parsed)
+    if computed:
+        return format_price_breakdown(computed)
+
+    fallback_text = "S tým vám neviem pomôcť, kontaktujte ich prosím na 0944 757 122 alebo parobciovcanske@gmail.com."
+    api_key = st.secrets.get("OPENAI_API_KEY", None)
+    if not api_key:
+        return fallback_text
+
+    try:
+        client = OpenAI(api_key=api_key)
+
+        messages = [
+            {
+                "role": "system",
+                "content": (
+                    "Si oficiálny asistent kapely Ovčanske Parobci. "
+                    "Odpovedaj po slovensky prirodzene, ľudsky, stručne a vecne. "
+                    "Používaj výhradne informácie z dodaného kontextu. "
+                    "Nevymýšľaj si. "
+                    f"Ak niečo nevieš alebo to nie je v kontexte, odpovedz PRESNE touto vetou: {fallback_text}"
+                )
+            },
+            {"role": "system", "content": build_local_context()},
+        ]
+
+        history = st.session_state.get("chat_messages", [])
+        for m in history[-10:]:
+            role = m.get("role")
+            content = m.get("content", "")
+            if role in ("user", "assistant") and content:
+                messages.append({"role": role, "content": content})
+
+        messages.append({"role": "user", "content": user_msg})
+
+        resp = client.chat.completions.create(
+            model="gpt-4o-mini",
+            temperature=0.6,
+            top_p=0.95,
+            messages=messages
+        )
+
+        answer = (resp.choices[0].message.content or "").strip()
+        return answer if answer else fallback_text
+
+    except Exception:
+        return fallback_text
 # -------------------- LIVE CHAT UI --------------------
 st.markdown("<hr style='border-color: rgba(212,175,55,0.3); margin-top: 30px;'>", unsafe_allow_html=True)
 st.subheader("💬 Live chat asistent")
