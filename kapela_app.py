@@ -988,7 +988,12 @@ elif menu == "ℹ️ O nás":
     """, unsafe_allow_html=True)
 
     st.subheader("🎼 Naši členovia")
-    clenovia = [{"meno": "Akordeón", "pocet": 2}, {"meno": "Husle", "pocet": 1}, {"meno": "Bubon", "pocet": 1}, {"meno": "Saxofón", "pocet": 1}]
+    clenovia = [
+        {"meno": "Akordeón", "pocet": 2},
+        {"meno": "Husle", "pocet": 1},
+        {"meno": "Bubon", "pocet": 1},
+        {"meno": "Saxofón", "pocet": 1}
+    ]
     for clen in clenovia:
         st.markdown(f"""
             <div class="clenovia-box">
@@ -996,6 +1001,35 @@ elif menu == "ℹ️ O nás":
                 <p style="margin: 5px 0; color: #ccc;">{clen['pocet']} {'člen' if clen['pocet'] == 1 else 'členovia'}</p>
             </div>
         """, unsafe_allow_html=True)
+
+    st.subheader("📍 Kde nás nájdete")
+    st.markdown(
+        """
+        <div style="text-align:center; margin-bottom:10px; color:#ccc;">
+            Obec Ovčie, Slovensko
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
+    st.components.v1.iframe(
+        "https://www.google.com/maps?q=Ov%C4%8Die,+Slovensko&output=embed",
+        height=400,
+        scrolling=False
+    )
+
+    st.markdown(
+        """
+        <div style="text-align:center; margin-top:10px;">
+            <a href="https://www.google.com/maps/search/?api=1&query=Ov%C4%8Die%2C+Slovensko" target="_blank"
+               style="display:inline-block;padding:10px 18px;background:#d4af37;color:#000;text-decoration:none;border-radius:8px;font-weight:bold;">
+               🗺️ Otvoriť mapu v Google Maps
+            </a>
+        </div>
+        """,
+        unsafe_allow_html=True
+    )
+
     zobraz_footer_tlacidla()
 
 elif menu == "📸 Galéria":
