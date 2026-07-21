@@ -1012,15 +1012,20 @@ elif menu == "ℹ️ O nás":
         unsafe_allow_html=True
     )
 
+    # Mapa
     st.components.v1.iframe(
         "https://www.google.com/maps?q=Ov%C4%8Die,+Slovensko&output=embed",
         height=400,
         scrolling=False
     )
 
+    # Medzera pod mapou
+    st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
+
+    # Tlačidlo s väčším spodným odsadením, aby sa neprekrývalo s ďalšou sekciou
     st.markdown(
         """
-        <div style="text-align:center; margin-top:10px;">
+        <div style="text-align:center; margin-top:10px; margin-bottom:40px;">
             <a href="https://www.google.com/maps/search/?api=1&query=Ov%C4%8Die%2C+Slovensko" target="_blank"
                style="display:inline-block;padding:10px 18px;background:#d4af37;color:#000;text-decoration:none;border-radius:8px;font-weight:bold;">
                🗺️ Otvoriť mapu v Google Maps
@@ -1031,6 +1036,7 @@ elif menu == "ℹ️ O nás":
     )
 
     zobraz_footer_tlacidla()
+    
 
 elif menu == "📸 Galéria":
     st.session_state['page_id'] = 'galeria'
