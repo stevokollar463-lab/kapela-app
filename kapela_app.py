@@ -1245,6 +1245,7 @@ elif menu == "ℹ️ O nás":
     )
 
     zobraz_footer_tlacidla()
+   
     elif menu == "📸 Galéria":
     st.session_state['page_id'] = 'galeria'
     st.title("📸 Galéria a Videá")
