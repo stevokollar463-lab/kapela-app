@@ -388,9 +388,6 @@ def nacti_media():
                     nazov = subor.get("name", "")
                     if nazov and nazov != ".emptyFolderPlaceholder":
                         try:
-                            # pri root súboroch je full path názov; pri iných štruktúrach fallback cez id
-                            full_path = subor.get("id") or nazov
-                            # pre public URL použijeme názov (v tomto bucket flow)
                             public_url = supabase.storage.from_("parobci-media").get_public_url(nazov)
                             ext = nazov.split(".")[-1].lower()
                             if ext in ["jpg", "jpeg", "png", "gif", "webp"]:
@@ -418,8 +415,8 @@ def nacti_vsetky_media():
                     ext = nazov.split(".")[-1].lower() if "." in nazov else ""
                     typ = "Foto" if ext in ["jpg", "jpeg", "png", "gif", "webp"] else "Video" if ext in ["mp4", "mov", "avi", "webm"] else "Iný"
 
-                    # dôležité pre spoľahlivé mazanie
-                    full_path = subor.get("id") or nazov
+                    # DÔLEŽITÉ: pre remove() použiť skutočnú cestu/názov súboru
+                    full_path = nazov
 
                     subbory_list.append({
                         "nazov": nazov,
@@ -884,6 +881,7 @@ if menu == "🎸 Rezervácia":
         detaily_vypoctu += f" | Ozvučenie: {CENA_APARATURA:.2f} €"
     detaily_vypoctu += f" | Doprava {km*2} km celkovo: {cena_doprava:.2f} €"
 
+    # SKRYTÁ kalkulácia
     st.info("💡 Vypočítaná cena vám príde na e-mail na potvrdenie.")
 
     with st.expander("📅 Zobraziť kalendár obsadenosti"):
@@ -1345,16 +1343,18 @@ else:
                         if st.button("🗑️", key=f"delete_media_{idx}"):
                             if supabase:
                                 try:
-                                    path_na_vymazanie = media_item.get("full_path") or media_item.get("nazov", "").strip()
+                                    # kľúčové: maže sa NAME/PATH, nie UUID
+                                    path_na_vymazanie = (media_item.get("full_path") or media_item.get("nazov", "")).strip()
 
                                     if not path_na_vymazanie:
                                         st.error("Chýba cesta k súboru na vymazanie.")
                                     else:
                                         delete_res = supabase.storage.from_("parobci-media").remove([path_na_vymazanie])
 
+                                        # overenie, či súbor ešte existuje (podľa name)
                                         novy_zoznam = supabase.storage.from_("parobci-media").list(path="", options={"limit": 1000, "offset": 0})
                                         stale_existuje = any(
-                                            (s.get("id") == path_na_vymazanie) or (s.get("name") == media_item.get("nazov"))
+                                            s.get("name", "").strip() == media_item.get("nazov", "").strip()
                                             for s in (novy_zoznam or [])
                                         )
 
