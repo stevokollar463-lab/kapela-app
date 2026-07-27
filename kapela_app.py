@@ -84,6 +84,45 @@ def build_storage_filename(original_name: str) -> str:
     return f"{int(datetime.now().timestamp())}_{clean}"
 
 
+def list_storage_files_recursive(bucket_name: str, folder: str = ""):
+    """
+    Rekurzívne načítanie všetkých súborov z bucketu vrátane podpriečinkov.
+    Vracia list dictov: {name, full_path, metadata, created_at}
+    """
+    all_files = []
+    if not supabase:
+        return all_files
+
+    try:
+        items = supabase.storage.from_(bucket_name).list(
+            path=folder,
+            options={"limit": 1000, "offset": 0}
+        ) or []
+    except Exception:
+        return all_files
+
+    for item in items:
+        name = item.get("name", "")
+        if not name or name == ".emptyFolderPlaceholder":
+            continue
+
+        metadata = item.get("metadata") or {}
+        is_file = "size" in metadata
+        full_path = f"{folder}/{name}" if folder else name
+
+        if is_file:
+            all_files.append({
+                "name": name,
+                "full_path": full_path,
+                "metadata": metadata,
+                "created_at": item.get("created_at", "")
+            })
+        else:
+            all_files.extend(list_storage_files_recursive(bucket_name, full_path))
+
+    return all_files
+
+
 def apply_style():
     st.markdown(f"""
         <style>
@@ -382,20 +421,20 @@ def nacti_media():
     vysledky = {"fotky": [], "videa": []}
     if supabase:
         try:
-            response = supabase.storage.from_("parobci-media").list(path="", options={"limit": 1000, "offset": 0})
-            if response:
-                for subor in response:
-                    nazov = subor.get("name", "")
-                    if nazov and nazov != ".emptyFolderPlaceholder":
-                        try:
-                            public_url = supabase.storage.from_("parobci-media").get_public_url(nazov)
-                            ext = nazov.split(".")[-1].lower()
-                            if ext in ["jpg", "jpeg", "png", "gif", "webp"]:
-                                vysledky["fotky"].append(public_url)
-                            elif ext in ["mp4", "mov", "avi", "webm"]:
-                                vysledky["videa"].append(public_url)
-                        except Exception:
-                            pass
+            files = list_storage_files_recursive("parobci-media", "")
+            for f in files:
+                nazov = f["name"]
+                full_path = f["full_path"]
+                ext = nazov.split(".")[-1].lower() if "." in nazov else ""
+
+                try:
+                    public_url = supabase.storage.from_("parobci-media").get_public_url(full_path)
+                    if ext in ["jpg", "jpeg", "png", "gif", "webp"]:
+                        vysledky["fotky"].append(public_url)
+                    elif ext in ["mp4", "mov", "avi", "webm"]:
+                        vysledky["videa"].append(public_url)
+                except Exception:
+                    pass
         except Exception:
             pass
     return vysledky
@@ -405,27 +444,21 @@ def nacti_vsetky_media():
     subbory_list = []
     if supabase:
         try:
-            response = supabase.storage.from_("parobci-media").list(path="", options={"limit": 1000, "offset": 0})
-            if response:
-                for subor in response:
-                    nazov = subor.get("name", "")
-                    if not nazov or nazov == ".emptyFolderPlaceholder":
-                        continue
+            files = list_storage_files_recursive("parobci-media", "")
+            for f in files:
+                nazov = f["name"]
+                full_path = f["full_path"]
+                ext = nazov.split(".")[-1].lower() if "." in nazov else ""
+                typ = "Foto" if ext in ["jpg", "jpeg", "png", "gif", "webp"] else "Video" if ext in ["mp4", "mov", "avi", "webm"] else "Iný"
 
-                    ext = nazov.split(".")[-1].lower() if "." in nazov else ""
-                    typ = "Foto" if ext in ["jpg", "jpeg", "png", "gif", "webp"] else "Video" if ext in ["mp4", "mov", "avi", "webm"] else "Iný"
-
-                    # DÔLEŽITÉ: pre remove() použiť skutočnú cestu/názov súboru
-                    full_path = nazov
-
-                    subbory_list.append({
-                        "nazov": nazov,
-                        "full_path": full_path,
-                        "ext": ext,
-                        "typ": typ,
-                        "velkost": subor.get("metadata", {}).get("size", 0),
-                        "vytvorene": subor.get("created_at", "")
-                    })
+                subbory_list.append({
+                    "nazov": nazov,
+                    "full_path": full_path,
+                    "ext": ext,
+                    "typ": typ,
+                    "velkost": f.get("metadata", {}).get("size", 0),
+                    "vytvorene": f.get("created_at", "")
+                })
         except Exception as e:
             st.error(f"Chyba čítania média listu: {e}")
     return subbory_list
@@ -1333,7 +1366,8 @@ else:
                     col1, col2, col3, col4 = st.columns([2, 1, 1, 1])
 
                     with col1:
-                        st.write(f"📄 **{media_item['nazov'][:40]}...**" if len(media_item['nazov']) > 40 else f"📄 **{media_item['nazov']}**")
+                        display_nazov = media_item["full_path"]
+                        st.write(f"📄 **{display_nazov[:40]}...**" if len(display_nazov) > 40 else f"📄 **{display_nazov}**")
                     with col2:
                         st.write(f"🏷️ {media_item['typ']}")
                     with col3:
@@ -1343,19 +1377,17 @@ else:
                         if st.button("🗑️", key=f"delete_media_{idx}"):
                             if supabase:
                                 try:
-                                    # kľúčové: maže sa NAME/PATH, nie UUID
-                                    path_na_vymazanie = (media_item.get("full_path") or media_item.get("nazov", "")).strip()
+                                    path_na_vymazanie = (media_item.get("full_path") or "").strip()
 
                                     if not path_na_vymazanie:
                                         st.error("Chýba cesta k súboru na vymazanie.")
                                     else:
                                         delete_res = supabase.storage.from_("parobci-media").remove([path_na_vymazanie])
 
-                                        # overenie, či súbor ešte existuje (podľa name)
-                                        novy_zoznam = supabase.storage.from_("parobci-media").list(path="", options={"limit": 1000, "offset": 0})
+                                        novy_files = list_storage_files_recursive("parobci-media", "")
                                         stale_existuje = any(
-                                            s.get("name", "").strip() == media_item.get("nazov", "").strip()
-                                            for s in (novy_zoznam or [])
+                                            s.get("full_path", "").strip() == path_na_vymazanie
+                                            for s in novy_files
                                         )
 
                                         if stale_existuje:
@@ -1366,7 +1398,7 @@ else:
                                             st.rerun()
 
                                 except Exception as e:
-                                    st.error(f"Chyba pri vymazávaní '{media_item.get('nazov', '')}': {e}")
+                                    st.error(f"Chyba pri vymazávaní '{media_item.get('full_path', media_item.get('nazov', ''))}': {e}")
                             else:
                                 st.error("Chyba: Pripojenie k Supabase nie je aktívne.")
             else:
