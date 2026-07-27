@@ -11,6 +11,8 @@ import json
 import calendar
 import secrets
 import urllib.parse
+import unicodedata
+import re
 
 # --- BEZPEČNÁ KONFIGURÁCIA (IBA st.secrets) ---
 try:
@@ -48,6 +50,50 @@ def get_supabase_client():
 
 
 supabase = get_supabase_client()
+
+
+def sanitize_filename(filename: str) -> str:
+    """
+    Odstráni diakritiku, nahradí medzery podčiarkovníkom,
+    ponechá len bezpečné znaky a zachová príponu.
+    """
+    if not filename:
+        return "subor"
+
+    # oddelenie názvu a prípony
+    if "." in filename:
+        base, ext = filename.rsplit(".", 1)
+        ext = ext.lower()
+    else:
+        base, ext = filename, ""
+
+    # odstránenie diakritiky
+    base = unicodedata.normalize("NFKD", base).encode("ascii", "ignore").decode("ascii")
+
+    # medzery -> underscore
+    base = base.replace(" ", "_")
+
+    # povolené znaky len [a-zA-Z0-9._-]
+    base = re.sub(r"[^A-Za-z0-9._-]", "", base)
+
+    # odstráni opakované underscore
+    base = re.sub(r"_+", "_", base).strip("._-")
+
+    if not base:
+        base = "subor"
+
+    if ext:
+        return f"{base}.{ext}"
+    return base
+
+
+def build_storage_filename(original_name: str) -> str:
+    """
+    Vytvorí bezpečný názov pre storage:
+    timestamp + sanitize_filename
+    """
+    clean = sanitize_filename(original_name)
+    return f"{int(datetime.now().timestamp())}_{clean}"
 
 
 def apply_style():
@@ -840,7 +886,6 @@ if menu == "🎸 Rezervácia":
         detaily_vypoctu += f" | Ozvučenie: {CENA_APARATURA:.2f} €"
     detaily_vypoctu += f" | Doprava {km*2} km celkovo: {cena_doprava:.2f} €"
 
-    # SKRYTÁ kalkulácia
     st.info("💡 Vypočítaná cena vám príde na e-mail na potvrdenie.")
 
     with st.expander("📅 Zobraziť kalendár obsadenosti"):
@@ -922,7 +967,6 @@ if menu == "🎸 Rezervácia":
 
     zobraz_footer_tlacidla()
 
-# --- 2. PODROBNÝ CENNÍK ---
 elif menu == "💰 Cenník":
     st.session_state['page_id'] = 'cennik'
     st.title("💰 Cenník služieb")
@@ -1012,17 +1056,14 @@ elif menu == "ℹ️ O nás":
         unsafe_allow_html=True
     )
 
-    # Mapa
     st.components.v1.iframe(
         "https://www.google.com/maps?q=Ov%C4%8Die,+Slovensko&output=embed",
         height=400,
         scrolling=False
     )
 
-    # Medzera pod mapou
     st.markdown("<div style='height:16px;'></div>", unsafe_allow_html=True)
 
-    # Tlačidlo s väčším spodným odsadením, aby sa neprekrývalo s ďalšou sekciou
     st.markdown(
         """
         <div style="text-align:center; margin-top:10px; margin-bottom:40px;">
@@ -1036,7 +1077,6 @@ elif menu == "ℹ️ O nás":
     )
 
     zobraz_footer_tlacidla()
-    
 
 elif menu == "📸 Galéria":
     st.session_state['page_id'] = 'galeria'
@@ -1256,12 +1296,13 @@ else:
             )
 
             if subor_na_nahratie is not None:
+                st.caption(f"Vybraný súbor: {subor_na_nahratie.name}")
                 if st.button("🚀 NAHRAŤ VYBRANÝ SÚBOR"):
                     if supabase:
                         try:
                             subor_bytes = subor_na_nahratie.read()
                             povodny_nazov = subor_na_nahratie.name
-                            cisty_nazov = f"{int(datetime.now().timestamp())}_{povodny_nazov.replace(' ', '_')}"
+                            cisty_nazov = build_storage_filename(povodny_nazov)
 
                             res = supabase.storage.from_("parobci-media").upload(
                                 path=cisty_nazov,
@@ -1269,9 +1310,11 @@ else:
                                 file_options={"content-type": subor_na_nahratie.type}
                             )
 
-                            if res:
-                                st.success(f"Súbor '{povodny_nazov}' bol úspešne nahraný! 🎉")
+                            if res is not None:
+                                st.success(f"Súbor '{povodny_nazov}' bol úspešne nahraný ako '{cisty_nazov}'! 🎉")
                                 st.rerun()
+                            else:
+                                st.error("Upload nevrátil odpoveď. Skontrolujte prístup ku storage.")
                         except Exception as e:
                             st.error(f"Chyba pri nahrávaní súboru: {e}")
                     else:
@@ -1299,11 +1342,19 @@ else:
                         if st.button("🗑️", key=f"delete_media_{idx}"):
                             if supabase:
                                 try:
-                                    supabase.storage.from_("parobci-media").remove([media_item['nazov']])
-                                    st.success(f"Súbor '{media_item['nazov']}' vymazaný!")
+                                    nazov_na_vymazanie = media_item['nazov'].strip()
+                                    delete_res = supabase.storage.from_("parobci-media").remove([nazov_na_vymazanie])
+
+                                    # remove môže vrátiť rôzne formáty podľa verzie klienta, berieme to robustne
+                                    if delete_res is None:
+                                        st.warning(f"Požiadavka na vymazanie '{nazov_na_vymazanie}' bola odoslaná, ale bez odpovede.")
+                                    else:
+                                        st.success(f"Súbor '{nazov_na_vymazanie}' vymazaný!")
                                     st.rerun()
                                 except Exception as e:
-                                    st.error(f"Chyba pri vymazávaní: {e}")
+                                    st.error(f"Chyba pri vymazávaní '{media_item['nazov']}': {e}")
+                            else:
+                                st.error("Chyba: Pripojenie k Supabase nie je aktívne.")
             else:
                 st.info("Galéria je zatiaľ prázdna.")
 
